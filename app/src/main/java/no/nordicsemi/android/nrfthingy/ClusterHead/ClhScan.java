@@ -1,5 +1,6 @@
 package no.nordicsemi.android.nrfthingy.ClusterHead;
 
+import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.le.BluetoothLeScanner;
 import android.bluetooth.le.ScanCallback;
@@ -10,10 +11,12 @@ import android.os.Handler;
 import android.util.Log;
 import android.util.SparseArray;
 
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+
+import no.nordicsemi.android.nrfthingy.ClusterHead.packet.BaseDataPacket;
+import no.nordicsemi.android.nrfthingy.ClusterHead.packet.SoundDataPacket;
 
 public class ClhScan {
     private BluetoothAdapter mAdapter = BluetoothAdapter.getDefaultAdapter();
@@ -32,9 +35,9 @@ public class ClhScan {
     //private static final int MAX_PROCESS_LIST_ITEM=128;
     //private ClhAdvertisedData clhAdvData=new ClhAdvertisedData();
     private ClhAdvertise mClhAdvertiser;
-    private ArrayList<ClhAdvertisedData> mClhProcDataList ;
+    private ArrayList<BaseDataPacket> mClhProcDataList ;
     private ClhProcessData mClhProcessData;
-    private ArrayList<ClhAdvertisedData> mClhAdvDataList;
+    private ArrayList<SoundDataPacket> mClhAdvDataList;
     private static final int MAX_ADVERTISE_LIST_ITEM=128;
 
     public ClhScan()
@@ -50,7 +53,7 @@ public class ClhScan {
         mClhProcDataList=clhProcDataObj.getProcessDataList();
     }
 
-
+    @SuppressLint("NewApi")
     public int BLE_scan() {
         boolean result=true;
         byte[] advsettings=new byte[16];
@@ -199,13 +202,13 @@ public class ClhScan {
             {
                 ClhScanHistoryArray.append(manufacturerData.keyAt(0),0);
             }
-            ClhAdvertisedData clhAdvData = new ClhAdvertisedData();
+            SoundDataPacket clhAdvData = new SoundDataPacket();
 
             //add receive data to Advertise list or Process List
             //Log.i(LOG_TAG," add history"+ (receiverID>>8)+ "  "+(receiverID&0xFF) );
             //Log.i(LOG_TAG," manufacturer value"+ Arrays.toString(manufacturerData.valueAt(0)) );
 
-            clhAdvData.parcelAdvData(manufacturerData,0);
+            clhAdvData.setData(manufacturerData,0);
             if(mIsSink)
             {//if this Cluster Head is the Sink node (ID=0), add data to waiting process list
                     mClhProcessData.addProcessPacketToBuffer(clhAdvData);
@@ -215,7 +218,7 @@ public class ClhScan {
                     mClhAdvertiser.addAdvPacketToBuffer(clhAdvData,false);
                     Log.i(LOG_TAG, "Add data to advertised list, len:" + mClhAdvDataList.size());
                     Log.i(LOG_TAG, "Advertise list at " + (mClhAdvDataList.size() - 1) + ":"
-                            + Arrays.toString(mClhAdvDataList.get(mClhAdvDataList.size() - 1).getParcelClhData()));
+                            + Arrays.toString(mClhAdvDataList.get(mClhAdvDataList.size() - 1).getData()));
             }
         }
     }

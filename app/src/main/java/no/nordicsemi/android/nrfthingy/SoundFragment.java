@@ -80,7 +80,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 
 import no.nordicsemi.android.nrfthingy.ClusterHead.ClhAdvertise;
-import no.nordicsemi.android.nrfthingy.ClusterHead.ClhAdvertisedData;
+import no.nordicsemi.android.nrfthingy.ClusterHead.packet.BaseDataPacket;
+import no.nordicsemi.android.nrfthingy.ClusterHead.packet.SoundDataPacket;
 import no.nordicsemi.android.nrfthingy.ClusterHead.ClhConst;
 import no.nordicsemi.android.nrfthingy.ClusterHead.ClhProcessData;
 import no.nordicsemi.android.nrfthingy.ClusterHead.ClhScan;
@@ -300,7 +301,7 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
     private TextView mClhLog;
     private final String LOG_TAG="CLH Sound";
 
-    private ClhAdvertisedData mClhData=new ClhAdvertisedData();
+    private SoundDataPacket mClhData=new SoundDataPacket();
     private boolean mIsSink=false;
     private byte mClhID=2;
     private byte mClhDestID=0;
@@ -461,11 +462,11 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
                 handler.postDelayed(this, 1000); //loop every cycle
                 if(mIsSink)
                 {
-                    ArrayList<ClhAdvertisedData> procList=mClhProcessor.getProcessDataList();
+                    ArrayList<BaseDataPacket> procList=mClhProcessor.getProcessDataList();
                     for(int i=0; i<procList.size();i++)
                     {
                         if(i==10) break; //just display 10 line in one cycle
-                        byte[] data=procList.get(0).getParcelClhData();
+                        byte[] data=procList.get(0).getData();
                         mClhLog.append(Arrays.toString(data));
                         mClhLog.append("\r\n");
                         procList.remove(0);
@@ -521,14 +522,13 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
                         mClhData.setSoundPower(mClhThingySoundPower);
                         mClhAdvertiser.addAdvPacketToBuffer(mClhData,true);
                         for (int i = 0; i < 100; i++) {
-                            ClhAdvertisedData clh = new ClhAdvertisedData();
-                            clh.Copy(mClhData);
+                            SoundDataPacket clh = (SoundDataPacket) mClhData.clone();
                             //Log.i(LOG_TAG, "Array old:" + Arrays.toString(clh.getParcelClhData()));
                             mClhThingySoundPower += 10;
                             clh.setSoundPower(mClhThingySoundPower);
                             mClhAdvertiser.addAdvPacketToBuffer(clh,true);
 
-                            Log.i(LOG_TAG, "Add array:" + Arrays.toString(clh.getParcelClhData()));
+                            Log.i(LOG_TAG, "Add array:" + Arrays.toString(clh.getData()));
                             Log.i(LOG_TAG, "Array new size:" + mClhAdvertiser.getAdvertiseList().size());
                         }
                       }

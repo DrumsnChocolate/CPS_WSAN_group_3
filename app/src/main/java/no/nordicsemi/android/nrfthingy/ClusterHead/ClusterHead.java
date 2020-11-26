@@ -1,19 +1,21 @@
 package no.nordicsemi.android.nrfthingy.ClusterHead;
 
 import java.util.ArrayList;
-import java.util.UUID;
+
+import no.nordicsemi.android.nrfthingy.ClusterHead.packet.BaseDataPacket;
+import no.nordicsemi.android.nrfthingy.ClusterHead.packet.SoundDataPacket;
 
 public class ClusterHead {
     private static final int MAX_ADVERTISE_LIST_ITEM=ClhConst.MAX_ADVERTISE_LIST_ITEM; //max items in waiting list for advertising
     private static final int MAX_PROCESS_LIST_ITEM=ClhConst.MAX_PROCESS_LIST_ITEM; //max items in waiting list for processing
     private boolean mIsSink=false;
     private byte mClhID=1;
-    private final ArrayList<ClhAdvertisedData> mClhAdvDataList =new ArrayList<ClhAdvertisedData>(MAX_ADVERTISE_LIST_ITEM);
+    private final ArrayList<SoundDataPacket> mClhAdvDataList =new ArrayList<SoundDataPacket>(MAX_ADVERTISE_LIST_ITEM);
     private final ClhAdvertise mClhAdvertiser=new ClhAdvertise(mClhAdvDataList,MAX_ADVERTISE_LIST_ITEM);
 
     private final ClhScan mClhScanner=new ClhScan();
 
-    private final ArrayList<ClhAdvertisedData> mClhProcDataList =new ArrayList<>(MAX_PROCESS_LIST_ITEM);
+    private final ArrayList<BaseDataPacket> mClhProcDataList =new ArrayList<>(MAX_PROCESS_LIST_ITEM);
     private final ClhProcessData mClhProcessData=new ClhProcessData(mClhProcDataList,MAX_PROCESS_LIST_ITEM);
     public ClusterHead(){}
 
@@ -76,7 +78,7 @@ public class ClusterHead {
         return mClhProcessData;
     }
 
-    public ArrayList<ClhAdvertisedData> getAdvertiseList() {return mClhAdvDataList;}
+    public ArrayList<SoundDataPacket> getAdvertiseList() {return mClhAdvDataList;}
     public final boolean setClhID(byte id){
         mClhID=id;
         if (mClhID == 0) mIsSink = true;
