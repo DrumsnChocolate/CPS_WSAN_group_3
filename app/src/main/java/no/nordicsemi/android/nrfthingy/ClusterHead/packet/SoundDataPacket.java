@@ -6,16 +6,20 @@ import android.util.SparseArray;
 import java.util.Arrays;
 
 public class SoundDataPacket extends BaseDataPacket {
-    private static final int THINGY_ID_POS = 4;
-    private static final int THINGY_DATA_TYPE_POS = 5;
-    private static final int SOUND_POWER_POSH = 6;
-    private static final int SOUND_POWER_POSL = 7;
+    private static final byte PACKET_TYPE = 0;
 
-    protected static final int DATA_SIZE = SOUND_POWER_POSL + 1;
+    private static final int THINGY_ID_POS = 5;
+    private static final int THINGY_DATA_TYPE_POS = 6;
+    private static final int SOUND_POWER_POSH = 7;
+    private static final int SOUND_POWER_POSL = 8;
+
+    public SoundDataPacket() {
+        setPacketType(PACKET_TYPE);
+    }
 
     @Override
     protected int getDataSize() {
-        return DATA_SIZE;
+        return SOUND_POWER_POSL + 1;
     }
 
     @Override

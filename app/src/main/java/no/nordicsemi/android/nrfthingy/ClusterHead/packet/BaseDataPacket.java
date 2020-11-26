@@ -3,12 +3,21 @@ package no.nordicsemi.android.nrfthingy.ClusterHead.packet;
 import android.util.SparseArray;
 
 public abstract class BaseDataPacket implements Cloneable {
-    protected static final int SOURCE_CLH_ID_POS = 0;
-    protected static final int PACKET_CLH_ID_POS = 1;
-    protected static final int DEST_CLH_ID_POS = 2;
-    protected static final int HOP_COUNT_POS = 3;
+    protected static final int PACKET_TYPE_POS = 0;
+    protected static final int SOURCE_CLH_ID_POS = 1;
+    protected static final int PACKET_CLH_ID_POS = 2;
+    protected static final int DEST_CLH_ID_POS = 3;
+    protected static final int HOP_COUNT_POS = 4;
 
     byte[] data = new byte[getDataSize()];
+
+    /**
+     * Set packet type
+     * @param packetType packet type
+     */
+    public void setPacketType(byte packetType) {
+        data[PACKET_TYPE_POS] = packetType;
+    }
 
     /**
      * Set the ID of the source that sent the packet
@@ -61,6 +70,14 @@ public abstract class BaseDataPacket implements Cloneable {
      */
     public void setData(SparseArray<byte[]> data) {
         setData(data, 0);
+    }
+
+    /**
+     * Get the type of the packet
+     * @return packet type
+     */
+    public byte getPacketType() {
+        return data[PACKET_TYPE_POS];
     }
 
     /**
