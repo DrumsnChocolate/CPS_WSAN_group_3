@@ -6,7 +6,7 @@ import android.util.SparseArray;
 import java.util.Arrays;
 
 public class SoundDataPacket extends BaseDataPacket {
-    private static final byte PACKET_TYPE = 0;
+    public static final byte PACKET_TYPE = 0;
 
     private static final int THINGY_ID_POS = 5;
     private static final int THINGY_DATA_TYPE_POS = 6;

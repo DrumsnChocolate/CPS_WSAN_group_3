@@ -16,6 +16,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import no.nordicsemi.android.nrfthingy.ClusterHead.packet.BaseDataPacket;
+import no.nordicsemi.android.nrfthingy.ClusterHead.packet.RoutingDataPacket;
 import no.nordicsemi.android.nrfthingy.ClusterHead.packet.SoundDataPacket;
 
 public class ClhScan {
@@ -37,7 +38,7 @@ public class ClhScan {
     private ClhAdvertise mClhAdvertiser;
     private ArrayList<BaseDataPacket> mClhProcDataList ;
     private ClhProcessData mClhProcessData;
-    private ArrayList<SoundDataPacket> mClhAdvDataList;
+    private ArrayList<BaseDataPacket> mClhAdvDataList;
     private static final int MAX_ADVERTISE_LIST_ITEM=128;
 
     public ClhScan()
@@ -130,22 +131,15 @@ public class ClhScan {
         @Override
         public final void onScanResult(int callbackType, ScanResult result) {
             super.onScanResult(callbackType, result);
-            //no need this code since already have name filter
-            /*if( result == null
-                    || result.getDevice() == null
-                    || TextUtils.isEmpty(result.getDevice().getName()) ) {
-                Log.i(LOG_TAG, "Empty name space");
-                return;
-                //if( result == null || result.getDevice() == null)  return;
-            }*/
 
-            //check RSSI to remove weak signal ones
+            // Check RSSI to remove weak signal ones
             if (result.getRssi()<ClhConst.MIN_SCAN_RSSI_THRESHOLD) {
-                Log.i(LOG_TAG,"low RSSI");
+                Log.i(LOG_TAG,"Dropping packet, low RSSI");
                 return;
             }
 
-            SparseArray<byte[]> manufacturerData = result.getScanRecord().getManufacturerSpecificData(); //get data
+            // Get data
+            SparseArray<byte[]> manufacturerData = result.getScanRecord().getManufacturerSpecificData();
             processScanData(manufacturerData);
         }
 
@@ -161,64 +155,112 @@ public class ClhScan {
         }
     };
 
-
-/*process received data of BLE Manufacturer field
- include:
-- Manufacturer Specification (in manufacturerData.key): "unique packet ID", include
-            2 bytes: 0XAABB: AA: Source Cluster Head ID: 0-127
-                            BB: Packet ID: 0-254 (unique for each packet)
- - Manufacturer Data (in manufacturerData.value): remained n data bytes (manufacturerData.size())
--------------------*/
-
+    /**
+     * Process received data of BLE Manufacturer field
+     * This includes:
+     * - Manufacturer Specification (in manufacturerData.key): "unique packet ID", include
+     *             2 bytes: 0XAABB: AA: Source Cluster Head ID: 0-127
+     *                              BB: Packet ID: 0-254 (unique for each packet)
+     * - Manufacturer Data (in manufacturerData.value): remained n data bytes (manufacturerData.size())
+     * @param manufacturerData data received via bluetooth
+     */
     public void processScanData(SparseArray<byte[]> manufacturerData) {
 
-
-        if(manufacturerData==null)
-        {
-            Log.i(LOG_TAG, "no Data");
+        if (manufacturerData == null) {
+            Log.i(LOG_TAG, "No data received");
             return;
 
         }
-        int receiverID=manufacturerData.keyAt(0);
 
-        //reflected data (received cluster head ID = device Clh ID) -> skip
-        if(mClhID==(receiverID>>8))
-        {
-            Log.i(LOG_TAG,"reflected data, mClhID "+mClhID +", recv:" +(receiverID>>8) );
+        int receiverID = manufacturerData.keyAt(0);
+        byte sourceDeviceId = (byte) (receiverID >> 8);
+        byte packetId = (byte) (receiverID & 0xFF);
+
+        // Reflected data (we received a packet that we sent out)
+        if (mClhID == sourceDeviceId) {
+            Log.i(LOG_TAG, "Reflected data, mClhID " + mClhID + ", recv:" + sourceDeviceId);
             return;
         }
-        Log.i(LOG_TAG,"ID data "+ (receiverID>>8)+ "  "+(receiverID&0xFF) );
+        Log.i(LOG_TAG, "ID data " + sourceDeviceId + "  " + packetId);
 
-        /* check packet has been yet recieved by searching the "unique packet ID" history list
-         - history list include:
-                        Key: unique packet ID
-                        life counter: time of the packet lived in history list
-          --------------*/
+        /* check packet has been yet received by searching the "unique packet ID" history list
+        - history list include:
+           Key: unique packet ID
+           Life counter: time of the packet lived in history list
+         */
 
-        if (ClhScanHistoryArray.indexOfKey(manufacturerData.keyAt(0))<0)
-        {//not yet received
-            //history not yet full, update new "unique packet ID" to history list, reset life counter
-            if(ClhScanHistoryArray.size()<ClhConst.SCAN_HISTORY_LIST_SIZE)
-            {
-                ClhScanHistoryArray.append(manufacturerData.keyAt(0),0);
+        if (ClhScanHistoryArray.indexOfKey(manufacturerData.keyAt(0)) < 0) {//not yet received
+            // History not yet full, update new "unique packet ID" to history list, reset life counter
+            if (ClhScanHistoryArray.size() < ClhConst.SCAN_HISTORY_LIST_SIZE) {
+                ClhScanHistoryArray.append(manufacturerData.keyAt(0), 0);
             }
-            SoundDataPacket clhAdvData = new SoundDataPacket();
 
-            //add receive data to Advertise list or Process List
-            //Log.i(LOG_TAG," add history"+ (receiverID>>8)+ "  "+(receiverID&0xFF) );
-            //Log.i(LOG_TAG," manufacturer value"+ Arrays.toString(manufacturerData.valueAt(0)) );
+            byte packetType = BaseDataPacket.getPacketTypeFromBT(manufacturerData);
+            BaseDataPacket receivedPacket;
+            if (packetType == RoutingDataPacket.PACKET_TYPE) {
+                receivedPacket = new RoutingDataPacket();
+            } else if (packetType == SoundDataPacket.PACKET_TYPE) {
+                receivedPacket = new SoundDataPacket();
+            } else {
+                Log.i(LOG_TAG, "Received packet with unknown packet type "+packetType);
+                return;
+            }
+            receivedPacket.setDataFromBT(manufacturerData);
 
-            clhAdvData.setData(manufacturerData,0);
-            if(mIsSink)
-            {//if this Cluster Head is the Sink node (ID=0), add data to waiting process list
-                    mClhProcessData.addProcessPacketToBuffer(clhAdvData);
+
+            if (receivedPacket instanceof RoutingDataPacket) {
+                // Routing packet
+                RoutingDataPacket routingPacket = (RoutingDataPacket) receivedPacket;
+
+                if (routingPacket.routeResolved()) {
+                    // The route to the destination has been found, sending result back
+                    if (routingPacket.getDestinationID() == mClhID) {
+                        // A route that we requested was found
+                        // TODO Save the route
+                    } else {
+                        // Forward the routing packet to the device that requested the route
+                        if (routingPacket.routeContains(mClhID)) {
+                            // We are in the route, forward the packet back to the source
+                            // TODO We should probably also save this route in case a future 'normal' packet
+                            // has to be forwarded
+                            mClhAdvertiser.addAdvPacketToBuffer(routingPacket, false);
+                        } else {
+                            // We are not the best route to the source. Ignore the packet
+                            return;
+                        }
+                    }
+                } else if (routingPacket.routeContains(mClhID)) {
+                    // We are already in the route list so this packet has already been through
+                    // this node. We can ignore it.
+                    return;
+                } else {
+                    // Destination not found yet, add our address to the route and forward it
+                    routingPacket.addToRoute(mClhID);
+
+                    if (routingPacket.routeResolved()) {
+                        // The route is now resolved, send it back to the source
+                        routingPacket.setDestId(routingPacket.getSourceID());
+                        routingPacket.setSourceID(mClhID);
+                    }
+
+                    // Forward, with new address so a second packet with a different route won't be ignored
+                    mClhAdvertiser.addAdvPacketToBuffer(routingPacket, true);
+                }
+            } else {
+                // Normal packet
+
+                if (mIsSink) {
+                    // If this Cluster Head is the Sink node (ID=0), add data to waiting process list
+                    mClhProcessData.addProcessPacketToBuffer(receivedPacket);
                     Log.i(LOG_TAG, "Add data to process list, len:" + mClhProcDataList.size());
-            }
-            else {//normal CLuster Head (ID 0..127) add data to advertising list to forward
-                    mClhAdvertiser.addAdvPacketToBuffer(clhAdvData,false);
+                } else {
+                    // Normal Cluster Head (ID 1..127) add data to advertising list to forward
+                    // TODO Use route to forward
+                    mClhAdvertiser.addAdvPacketToBuffer(receivedPacket, false);
                     Log.i(LOG_TAG, "Add data to advertised list, len:" + mClhAdvDataList.size());
                     Log.i(LOG_TAG, "Advertise list at " + (mClhAdvDataList.size() - 1) + ":"
                             + Arrays.toString(mClhAdvDataList.get(mClhAdvDataList.size() - 1).getData()));
+                }
             }
         }
     }

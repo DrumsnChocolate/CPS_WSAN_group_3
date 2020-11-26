@@ -10,7 +10,7 @@ public class ClusterHead {
     private static final int MAX_PROCESS_LIST_ITEM=ClhConst.MAX_PROCESS_LIST_ITEM; //max items in waiting list for processing
     private boolean mIsSink=false;
     private byte mClhID=1;
-    private final ArrayList<SoundDataPacket> mClhAdvDataList =new ArrayList<SoundDataPacket>(MAX_ADVERTISE_LIST_ITEM);
+    private final ArrayList<BaseDataPacket> mClhAdvDataList =new ArrayList<BaseDataPacket>(MAX_ADVERTISE_LIST_ITEM);
     private final ClhAdvertise mClhAdvertiser=new ClhAdvertise(mClhAdvDataList,MAX_ADVERTISE_LIST_ITEM);
 
     private final ClhScan mClhScanner=new ClhScan();
@@ -78,7 +78,7 @@ public class ClusterHead {
         return mClhProcessData;
     }
 
-    public ArrayList<SoundDataPacket> getAdvertiseList() {return mClhAdvDataList;}
+    public ArrayList<BaseDataPacket> getAdvertiseList() {return mClhAdvDataList;}
     public final boolean setClhID(byte id){
         mClhID=id;
         if (mClhID == 0) mIsSink = true;

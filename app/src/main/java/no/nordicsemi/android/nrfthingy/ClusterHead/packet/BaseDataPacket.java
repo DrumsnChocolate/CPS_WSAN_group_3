@@ -3,10 +3,10 @@ package no.nordicsemi.android.nrfthingy.ClusterHead.packet;
 import android.util.SparseArray;
 
 public abstract class BaseDataPacket implements Cloneable {
-    protected static final int PACKET_TYPE_POS = 0;
-    protected static final int SOURCE_CLH_ID_POS = 1;
-    protected static final int PACKET_CLH_ID_POS = 2;
-    protected static final int DEST_CLH_ID_POS = 3;
+    protected static final int SOURCE_CLH_ID_POS = 0;
+    protected static final int PACKET_CLH_ID_POS = 1;
+    protected static final int DEST_CLH_ID_POS = 2;
+    protected static final int PACKET_TYPE_POS = 3;
     protected static final int HOP_COUNT_POS = 4;
 
     byte[] data = new byte[getDataSize()];
@@ -56,20 +56,37 @@ public abstract class BaseDataPacket implements Cloneable {
      * @param data data received via bluetooth
      * @param index index of the data
      */
-    public void setData(SparseArray<byte[]> data, int index) {
-        this.data[SOURCE_CLH_ID_POS] = (byte) (data.keyAt(index) >> 8);
-        this.data[PACKET_CLH_ID_POS] = (byte) (data.keyAt(index) & 0x00FF);
-        if (data.valueAt(index) != null) {
-            System.arraycopy(data.valueAt(index), 0, this.data, PACKET_CLH_ID_POS + 1, data.valueAt(index).length);
+    public void setDataFromBT(SparseArray<byte[]> data, int index) {
+        this.data = getDataArrayFromBTSparseArray(data, index);
+    }
+
+    private static byte[] getDataArrayFromBTSparseArray(SparseArray<byte[]> btData, int index) {
+        byte[] data;
+        if (btData.valueAt(index) == null) {
+           data = new byte[2];
+        } else {
+            data = new byte[btData.valueAt(index).length + 2];
+            System.arraycopy(btData.valueAt(index), 0, data, PACKET_CLH_ID_POS + 1, btData.valueAt(index).length);
         }
+        data[SOURCE_CLH_ID_POS] = (byte) (btData.keyAt(index) >> 8);
+        data[PACKET_CLH_ID_POS] = (byte) (btData.keyAt(index) & 0xFF);
+        return data;
     }
 
     /**
      * Set the data from the bluetooth received data
      * @param data data received via bluetooth
      */
-    public void setData(SparseArray<byte[]> data) {
-        setData(data, 0);
+    public void setDataFromBT(SparseArray<byte[]> data) {
+        setDataFromBT(data, 0);
+    }
+
+    /**
+     * Set the data bytes
+     * @param data data bytes
+     */
+    public void setData(byte[] data) {
+        this.data = data;
     }
 
     /**
@@ -78,6 +95,15 @@ public abstract class BaseDataPacket implements Cloneable {
      */
     public byte getPacketType() {
         return data[PACKET_TYPE_POS];
+    }
+
+    /**
+     * Get the type of the packet based on bluetooth received data
+     * @param data data received via bluetooth
+     * @return packet type
+     */
+    public static byte getPacketTypeFromBT(SparseArray<byte[]> data) {
+        return getDataArrayFromBTSparseArray(data, 0)[PACKET_TYPE_POS];
     }
 
     /**
