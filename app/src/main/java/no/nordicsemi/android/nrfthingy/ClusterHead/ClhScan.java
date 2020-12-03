@@ -39,6 +39,7 @@ public class ClhScan {
     private ArrayList<BaseDataPacket> mClhProcDataList ;
     private ClhProcessData mClhProcessData;
     private ArrayList<BaseDataPacket> mClhAdvDataList;
+    private byte[] mRoutetoSink=null;
     private static final int MAX_ADVERTISE_LIST_ITEM=128;
 
     public ClhScan()
@@ -207,7 +208,6 @@ public class ClhScan {
             }
             receivedPacket.setDataFromBT(manufacturerData);
 
-
             if (receivedPacket instanceof RoutingDataPacket) {
                 // Routing packet
                 RoutingDataPacket routingPacket = (RoutingDataPacket) receivedPacket;
@@ -216,13 +216,25 @@ public class ClhScan {
                     // The route to the destination has been found, sending result back
                     if (routingPacket.getDestinationID() == mClhID) {
                         // A route that we requested was found
-                        // TODO Save the route
+                        // Save the route
+                        if(mRoutetoSink == null || routingPacket.getHopCounts() < mRoutetoSink.length) {
+                            setRouteToSink(routingPacket.getRoute());
+                        } else {
+                            Log.i(LOG_TAG, "Route already exists." );
+                        }
+
                     } else {
                         // Forward the routing packet to the device that requested the route
                         if (routingPacket.routeContains(mClhID)) {
                             // We are in the route, forward the packet back to the source
-                            // TODO We should probably also save this route in case a future 'normal' packet
+                            // We should probably also save this route in case a future 'normal' packet
                             // has to be forwarded
+                            // If shorter route arrives later we should exchange packet
+                            if(mRoutetoSink == null || routingPacket.getHopCounts() < mRoutetoSink.length) {
+                                setRouteToSink(routingPacket.getRoute());
+                            } else {
+                                Log.i(LOG_TAG, "Route already exists." );
+                            }
                             mClhAdvertiser.addAdvPacketToBuffer(routingPacket, false);
                         } else {
                             // We are not the best route to the source. Ignore the packet
@@ -252,6 +264,7 @@ public class ClhScan {
                 if (mIsSink) {
                     // If this Cluster Head is the Sink node (ID=0), add data to waiting process list
                     mClhProcessData.addProcessPacketToBuffer(receivedPacket);
+                    //
                     Log.i(LOG_TAG, "Add data to process list, len:" + mClhProcDataList.size());
                 } else {
                     // Normal Cluster Head (ID 1..127) add data to advertising list to forward
@@ -283,6 +296,13 @@ public class ClhScan {
         mClhProcDataList=mClhProcessData.getProcessDataList();
     }
 
+    private void setRouteToSink(byte[] mRoutetoSink) {
+        this.mRoutetoSink = mRoutetoSink;
+    }
+
+    public byte[] getRouteToSink() {
+        return mRoutetoSink;
+    }
 }
 
 
