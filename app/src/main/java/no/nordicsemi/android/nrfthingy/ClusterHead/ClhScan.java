@@ -18,6 +18,7 @@ import java.util.List;
 import no.nordicsemi.android.nrfthingy.ClusterHead.packet.BaseDataPacket;
 import no.nordicsemi.android.nrfthingy.ClusterHead.packet.RoutingDataPacket;
 import no.nordicsemi.android.nrfthingy.ClusterHead.packet.SoundDataPacket;
+import no.nordicsemi.android.nrfthingy.ClusterHead.packet.SoundEventDataPacket;
 
 public class ClhScan {
     private BluetoothAdapter mAdapter = BluetoothAdapter.getDefaultAdapter();
@@ -197,55 +198,29 @@ public class ClhScan {
 
             byte packetType = BaseDataPacket.getPacketTypeFromBT(manufacturerData);
             BaseDataPacket receivedPacket;
-            if (packetType == RoutingDataPacket.PACKET_TYPE) {
-                receivedPacket = new RoutingDataPacket();
-            } else if (packetType == SoundDataPacket.PACKET_TYPE) {
-                receivedPacket = new SoundDataPacket();
-            } else {
-                Log.i(LOG_TAG, "Received packet with unknown packet type "+packetType);
-                return;
+            switch (packetType) {
+                case RoutingDataPacket.PACKET_TYPE:
+                    receivedPacket = new RoutingDataPacket();
+                    break;
+                case SoundDataPacket.PACKET_TYPE:
+                    receivedPacket = new SoundDataPacket();
+                    break;
+                case SoundEventDataPacket.PACKET_TYPE:
+                    receivedPacket = new SoundEventDataPacket();
+                    break;
+                default:
+                    Log.i(LOG_TAG, "Received packet with unknown packet type "+packetType);
+                    return;
             }
             receivedPacket.setDataFromBT(manufacturerData);
 
 
             if (receivedPacket instanceof RoutingDataPacket) {
                 // Routing packet
-                RoutingDataPacket routingPacket = (RoutingDataPacket) receivedPacket;
-
-                if (routingPacket.routeResolved()) {
-                    // The route to the destination has been found, sending result back
-                    if (routingPacket.getDestinationID() == mClhID) {
-                        // A route that we requested was found
-                        // TODO Save the route
-                    } else {
-                        // Forward the routing packet to the device that requested the route
-                        if (routingPacket.routeContains(mClhID)) {
-                            // We are in the route, forward the packet back to the source
-                            // TODO We should probably also save this route in case a future 'normal' packet
-                            // has to be forwarded
-                            mClhAdvertiser.addAdvPacketToBuffer(routingPacket, false);
-                        } else {
-                            // We are not the best route to the source. Ignore the packet
-                            return;
-                        }
-                    }
-                } else if (routingPacket.routeContains(mClhID)) {
-                    // We are already in the route list so this packet has already been through
-                    // this node. We can ignore it.
-                    return;
-                } else {
-                    // Destination not found yet, add our address to the route and forward it
-                    routingPacket.addToRoute(mClhID);
-
-                    if (routingPacket.routeResolved()) {
-                        // The route is now resolved, send it back to the source
-                        routingPacket.setDestId(routingPacket.getSourceID());
-                        routingPacket.setSourceID(mClhID);
-                    }
-
-                    // Forward, with new address so a second packet with a different route won't be ignored
-                    mClhAdvertiser.addAdvPacketToBuffer(routingPacket, true);
-                }
+                handleRoutingPacket((RoutingDataPacket) receivedPacket);
+            } else if (receivedPacket instanceof SoundEventDataPacket) {
+                // Packet with sound event data
+                handleSoundEventPacket((SoundEventDataPacket) receivedPacket);
             } else {
                 // Normal packet
 
@@ -254,23 +229,9 @@ public class ClhScan {
                     mClhProcessData.addProcessPacketToBuffer(receivedPacket);
                     Log.i(LOG_TAG, "Add data to process list, len:" + mClhProcDataList.size());
                 } else {
-                    // Normal Cluster Head (ID 1..127) add data to advertising list to forward
-                // Check if it is the first clusterhead after the source
-                    //  if(first) {
-                    //      check signal strength/other information
-                    //      if(event) {
-                    // TODO Use route to forward
-                    mClhAdvertiser.addAdvPacketToBuffer(receivedPacket, false);
-                    Log.i(LOG_TAG, "Add data to advertised list, len:" + mClhAdvDataList.size());
-                    Log.i(LOG_TAG, "Advertise list at " + (mClhAdvDataList.size() - 1) + ":"
-                            + Arrays.toString(mClhAdvDataList.get(mClhAdvDataList.size() - 1).getData()));
+                    // Normal Cluster Head (ID 1..127), forward data
+                    forwardPacket(receivedPacket);
                 }
-                    //      }
-                    //  }
-                    //  else {  [If the clusterhead is not the first one after the source]
-                    //      advance the data to the next clusterhead (repeat the if(event) part]
-                    //  }
-
             }
         }
     }
@@ -291,6 +252,71 @@ public class ClhScan {
     public void setProcDataObject(ClhProcessData clhProObj){
         mClhProcessData=clhProObj;
         mClhProcDataList=mClhProcessData.getProcessDataList();
+    }
+
+    /**
+     * Handle a received Routing Packet
+     *
+     * @param routingPacket The packet
+     */
+    private void handleRoutingPacket(RoutingDataPacket routingPacket) {
+        if (routingPacket.routeResolved()) {
+            // The route to the destination has been found, sending result back
+            if (routingPacket.getDestinationID() == mClhID) {
+                // A route that we requested was found
+                // TODO Save the route
+            } else {
+                // Forward the routing packet to the device that requested the route
+                if (routingPacket.routeContains(mClhID)) {
+                    // We are in the route, forward the packet back to the source
+                    // TODO We should probably also save this route in case a future 'normal' packet
+                    // has to be forwarded
+                    mClhAdvertiser.addAdvPacketToBuffer(routingPacket, false);
+                } else {
+                    // We are not the best route to the source. Ignore the packet
+                    return;
+                }
+            }
+        } else if (routingPacket.routeContains(mClhID)) {
+            // We are already in the route list so this packet has already been through
+            // this node. We can ignore it.
+            return;
+        } else {
+            // Destination not found yet, add our address to the route and forward it
+            routingPacket.addToRoute(mClhID);
+
+            if (routingPacket.routeResolved()) {
+                // The route is now resolved, send it back to the source
+                routingPacket.setDestId(routingPacket.getSourceID());
+                routingPacket.setSourceID(mClhID);
+            }
+
+            // Forward, with new address so a second packet with a different route won't be ignored
+            mClhAdvertiser.addAdvPacketToBuffer(routingPacket, true);
+        }
+    }
+
+    /**
+     * Handle a received Sound Event package
+     *
+     * @param soundEventPacket The package
+     */
+    private void handleSoundEventPacket(SoundEventDataPacket soundEventPacket) {
+        if (mIsSink) {
+            // If this Cluster Head is the Sink node (ID=0), add data to waiting process list
+            mClhProcessData.addProcessPacketToBuffer(soundEventPacket);
+            Log.i(LOG_TAG, "Add event to process list, new lenght:" + mClhProcDataList.size());
+        } else {
+            forwardPacket(soundEventPacket);
+        }
+    }
+
+    private void forwardPacket(BaseDataPacket packet) {
+        // TODO Use route to forward
+        mClhAdvertiser.addAdvPacketToBuffer(packet, false);
+        Log.i(LOG_TAG, "Add data to advertised list, len:" + mClhAdvDataList.size());
+        Log.i(LOG_TAG, "Advertise list at " + (mClhAdvDataList.size() - 1) + ":"
+                + Arrays.toString(mClhAdvDataList.get(mClhAdvDataList.size() - 1).getData()));
     }
 
 }
