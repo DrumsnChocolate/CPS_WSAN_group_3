@@ -210,12 +210,27 @@ public class ClhScan {
             {//if this Cluster Head is the Sink node (ID=0), add data to waiting process list
                     mClhProcessData.addProcessPacketToBuffer(clhAdvData);
                     Log.i(LOG_TAG, "Add data to process list, len:" + mClhProcDataList.size());
+
+                    // Add a call for the newly created method here (this method should be created in ClhProcessData.java)
+                    // Probably use the method ClhProcessData() that already exists or is this already used for something else?
+
             }
             else {//normal CLuster Head (ID 0..127) add data to advertising list to forward
+
+                // Check if it is the first clusterhead after the source
+                    //  if(first) {
+                    //      check signal strength/other information
+                    //      if(event) {
                     mClhAdvertiser.addAdvPacketToBuffer(clhAdvData,false);
                     Log.i(LOG_TAG, "Add data to advertised list, len:" + mClhAdvDataList.size());
                     Log.i(LOG_TAG, "Advertise list at " + (mClhAdvDataList.size() - 1) + ":"
                             + Arrays.toString(mClhAdvDataList.get(mClhAdvDataList.size() - 1).getParcelClhData()));
+                    //      }
+                    //  }
+                    //  else {  [If the clusterhead is not the first one after the source]
+                    //      advance the data to the next clusterhead (repeat the if(event) part]
+                    //  }
+
             }
         }
     }
