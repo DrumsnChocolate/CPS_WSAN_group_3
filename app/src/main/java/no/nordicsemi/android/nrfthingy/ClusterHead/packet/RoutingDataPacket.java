@@ -32,7 +32,7 @@ public class RoutingDataPacket extends BaseDataPacket {
     }
 
     @Override
-    public BaseDataPacket clone() {
+    public RoutingDataPacket clone() {
         RoutingDataPacket clone = new RoutingDataPacket();
         clone.data = Arrays.copyOf(data, data.length);
         return clone;

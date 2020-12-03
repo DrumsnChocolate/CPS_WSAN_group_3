@@ -6,7 +6,7 @@ import no.nordicsemi.android.nrfthingy.ClusterHead.packet.BaseDataPacket;
 
 public class ClhProcessData {
 
-    public static final int MAX_PROCESS_LIST_ITEM = 128;
+    public static final int MAX_PROCESS_LIST_ITEM = ClhConst.MAX_PROCESS_LIST_ITEM;
     private int mMaxProcAllowable = MAX_PROCESS_LIST_ITEM;
     private ArrayList<BaseDataPacket> mClhProcessDataList;
     private int NextToProcess = 0;
@@ -32,10 +32,16 @@ public class ClhProcessData {
 
         //  - Apply a low pass filter to remove the noise:
         int value = processDataList.get(0).getSoundPower();
+    public ArrayList<BaseDataPacket> getProcessDataList() {
+        return mClhProcessDataList;
+    }
 
         // Check if the first data point surpasses the audioThreshold
         if (value >= audioThreshold) {
             threshold = true;
+    public void addProcessPacketToBuffer(BaseDataPacket data) {
+        if (mClhProcessDataList.size() < mMaxProcAllowable) {
+            mClhProcessDataList.add(data);
         }
 
         for (int i = 1; i < processDataList.size(); ++i) {
@@ -68,13 +74,5 @@ public class ClhProcessData {
         ++NextToProcess;
     }
 
-    public ArrayList<BaseDataPacket> getProcessDataList() {
-        return mClhProcessDataList;
-    }
-
-    public void addProcessPacketToBuffer(BaseDataPacket data) {
-        if (mClhProcessDataList.size() < mMaxProcAllowable) {
-            mClhProcessDataList.add(data);
-        }
     }
 }
