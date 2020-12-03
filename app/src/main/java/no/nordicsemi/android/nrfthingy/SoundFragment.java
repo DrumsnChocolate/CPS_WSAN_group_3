@@ -247,8 +247,11 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
 
                     //PSG edit No.1
                     //audio receive event
-                    if( mStartPlayingAudio = true)
-                         mClhAdvertiser.addAdvSoundData(data);
+                    if( mStartPlayingAudio = true) {
+                        mClhAdvertiser.addAdvSoundData(data);
+
+                        mClhProcessor.process(data);    // Process the advertised data
+                    }
                     //End PSG edit No.1
 
                 }
@@ -434,7 +437,7 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
             if (mStartRecordingAudio) {
                 if (mThingySdkManager.isConnected(mDevice)) {
                     startMicrophoneOverlayAnimation();
-                    sendAudiRecordingBroadcast();
+                    sendAudioRecordingBroadcast();
                 }
             }
         }
@@ -475,7 +478,7 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
             }
         }, 1000); //the time you want to delay in milliseconds
 
-        //"Start" button Click Hander
+        //"Start" button Click Handler
         // get Cluster Head ID (0-127) in text box to initialize advertiser
         //Then Start advertising
         //ID=0: Sink
@@ -551,7 +554,7 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
         return rootView;
     }
 
-    private void sendAudiRecordingBroadcast() {
+    private void sendAudioRecordingBroadcast() {
         Intent startAudioRecording = new Intent(getActivity(), ThingyMicrophoneService.class);
         startAudioRecording.setAction(Utils.START_RECORDING);
         startAudioRecording.putExtra(Utils.EXTRA_DEVICE, mDevice);
@@ -632,7 +635,7 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
 
     private void startRecording() {
         startMicrophoneOverlayAnimation();
-        sendAudiRecordingBroadcast();
+        sendAudioRecordingBroadcast();
         mStartRecordingAudio = true;
     }
 
