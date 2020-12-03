@@ -23,7 +23,7 @@ public class SoundDataPacket extends BaseDataPacket {
     }
 
     @Override
-    public BaseDataPacket clone() {
+    public SoundDataPacket clone() {
         SoundDataPacket clone = new SoundDataPacket();
         clone.data = Arrays.copyOf(data, data.length);
         return clone;

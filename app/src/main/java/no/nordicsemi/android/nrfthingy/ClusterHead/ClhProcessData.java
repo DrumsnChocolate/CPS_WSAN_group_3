@@ -6,7 +6,7 @@ import no.nordicsemi.android.nrfthingy.ClusterHead.packet.BaseDataPacket;
 
 public class ClhProcessData {
 
-    public static final int MAX_PROCESS_LIST_ITEM = 128;
+    public static final int MAX_PROCESS_LIST_ITEM = ClhConst.MAX_PROCESS_LIST_ITEM;
     private int mMaxProcAllowable = MAX_PROCESS_LIST_ITEM;
     private ArrayList<BaseDataPacket> mClhProcessDataList;
 
