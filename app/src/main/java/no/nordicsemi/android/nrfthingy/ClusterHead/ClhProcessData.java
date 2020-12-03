@@ -1,16 +1,14 @@
 package no.nordicsemi.android.nrfthingy.ClusterHead;
 
-import android.os.Handler;
-import android.util.Log;
-import android.util.SparseArray;
-
 import java.util.ArrayList;
+
+import no.nordicsemi.android.nrfthingy.ClusterHead.packet.BaseDataPacket;
 
 public class ClhProcessData {
 
-    public static final int MAX_PROCESS_LIST_ITEM=128;
-    private int mMaxProcAllowable=MAX_PROCESS_LIST_ITEM;
-    private ArrayList<ClhAdvertisedData> mClhProcessDataList;
+    public static final int MAX_PROCESS_LIST_ITEM = 128;
+    private int mMaxProcAllowable = MAX_PROCESS_LIST_ITEM;
+    private ArrayList<BaseDataPacket> mClhProcessDataList;
     private int NextToProcess = 0;
     private int[] FilteredData;
     private int audioThreshold = 0; // Set threshold for the sound
@@ -18,17 +16,14 @@ public class ClhProcessData {
     private boolean threshold = false;
 
 
-
-    public ClhProcessData()
-    {
-        mClhProcessDataList=new ArrayList<ClhAdvertisedData>(MAX_PROCESS_LIST_ITEM);
+    public ClhProcessData() {
+        mClhProcessDataList = new ArrayList<BaseDataPacket>(MAX_PROCESS_LIST_ITEM);
 
     }
 
-    public ClhProcessData(ArrayList<ClhAdvertisedData> ClhProcessDataList,int maxProcAllowable)
-    {
-        mMaxProcAllowable=maxProcAllowable;
-        mClhProcessDataList=ClhProcessDataList;
+    public ClhProcessData(ArrayList<BaseDataPacket> ClhProcessDataList, int maxProcAllowable) {
+        mMaxProcAllowable = maxProcAllowable;
+        mClhProcessDataList = ClhProcessDataList;
     }
     
     // A method that analyses the data in the sink:
@@ -73,25 +68,13 @@ public class ClhProcessData {
         ++NextToProcess;
     }
 
-    public ArrayList<ClhAdvertisedData> getProcessDataList()
-    {
+    public ArrayList<BaseDataPacket> getProcessDataList() {
         return mClhProcessDataList;
     }
 
-    public void addProcessPacketToBuffer(ClhAdvertisedData data)
-    {
-        if(mClhProcessDataList.size()<mMaxProcAllowable) {
+    public void addProcessPacketToBuffer(BaseDataPacket data) {
+        if (mClhProcessDataList.size() < mMaxProcAllowable) {
             mClhProcessDataList.add(data);
         }
     }
-
-    private void outputTotextbox(){
-        for(int i=0;i<mClhProcessDataList.size();i++)
-        {
-            if(i==10) break; //maximum output 10 string at one tick
-
-
-        }
-    }
-
 }
