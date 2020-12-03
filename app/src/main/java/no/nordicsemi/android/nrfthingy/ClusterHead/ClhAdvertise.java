@@ -14,6 +14,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.UUID;
 
+import no.nordicsemi.android.nrfthingy.ClusterHead.packet.BaseDataPacket;
+import no.nordicsemi.android.nrfthingy.ClusterHead.packet.SoundDataPacket;
+
 
 public class ClhAdvertise {
 
@@ -56,14 +59,14 @@ public class ClhAdvertise {
     private byte mClhID=1;
     private boolean mIsSink=false;
     private byte mCurrentPacketID= (byte) 1;
-    private ArrayList<ClhAdvertisedData >mClhAdvDataList;
+    private ArrayList<BaseDataPacket>mClhAdvDataList;
 
     public ClhAdvertise(){//constructor with no params
-        mClhAdvDataList= new ArrayList<ClhAdvertisedData>(MAX_ADVERTISE_LIST_ITEM);
+        mClhAdvDataList= new ArrayList<BaseDataPacket>(MAX_ADVERTISE_LIST_ITEM);
     }
 
     //constructor with param
-    public ClhAdvertise(ArrayList<ClhAdvertisedData> clhAdvDataList, int maxAdvAllowable){
+    public ClhAdvertise(ArrayList<BaseDataPacket> clhAdvDataList, int maxAdvAllowable){
         mMaxAdvAllowable=maxAdvAllowable;
         mClhAdvDataList=clhAdvDataList;
     }
@@ -174,7 +177,7 @@ public class ClhAdvertise {
 
         if (mClhAdvDataList.size()>0)
         {//list not empty, advertise item 0 in the list
-            byte[] mAdvData = mClhAdvDataList.get(0).getParcelClhData();
+            byte[] mAdvData = mClhAdvDataList.get(0).getData();
             mClhAdvDataList.remove(0);
             updateCLHdata(mAdvData);
             Log.i(LOG_TAG,"new data: size:"+mClhAdvDataList.size() + ",data:" +Arrays.toString(mAdvData));
@@ -186,14 +189,13 @@ public class ClhAdvertise {
         }
     }
 
-    /*==========================
-    Add a packet to queuing buffer for advertising
-    @parma:
-    data: data to be advertising
-    isOrginal: =true: packet is from internal process of this cluster head.
-            =false: packet received from other cluster head, need forwarding
+    /**
+     * Add a packet to queuing buffer for advertising
+     * @param data data to advertise
+     * @param isOrginal set to true to assign a new unique packet id or to false to forward the packet
+     *                  without changing the packet id
      */
-    public void addAdvPacketToBuffer(ClhAdvertisedData data,boolean isOrginal)
+    public void addAdvPacketToBuffer(BaseDataPacket data, boolean isOrginal)
     {
         if(mClhAdvDataList.size()<mMaxAdvAllowable) {
             if(isOrginal) {//this packet come from this device-> increase PacketID
@@ -230,7 +232,7 @@ public class ClhAdvertise {
 
             if(mSoundcount++==100)
             {//wait 100 dataset to reduce the load, update the sound data to advertising list
-                ClhAdvertisedData advData = new ClhAdvertisedData();
+                SoundDataPacket advData = new SoundDataPacket();
                 advData.setSourceID(mClhID);
                 advData.setDestId((byte) 0);
                 advData.setThingyDataType((byte) 10);
@@ -238,8 +240,8 @@ public class ClhAdvertise {
                 advData.setHopCount((byte) 0);
                 advData.setSoundPower(sounddata);
                 addAdvPacketToBuffer(advData,true);
-                ClhAdvertisedData temp=mClhAdvDataList.get(mClhAdvDataList.size()-1);
-                Log.i(LOG_TAG,"add new sound data:"+ Arrays.toString( temp.getParcelClhData()));
+                BaseDataPacket temp=mClhAdvDataList.get(mClhAdvDataList.size()-1);
+                Log.i(LOG_TAG,"add new sound data:"+ Arrays.toString( temp.getData()));
                 mSoundcount=0;
             }
         }
@@ -427,7 +429,7 @@ public class ClhAdvertise {
         }
     }
 
-    public ArrayList<ClhAdvertisedData> getAdvertiseList()
+    public ArrayList<BaseDataPacket> getAdvertiseList()
     {
         return mClhAdvDataList;
     }
