@@ -28,20 +28,14 @@ public class ClhProcessData {
     
     // A method that analyses the data in the sink:
     public void process(byte[] data) {
-        ArrayList<ClhAdvertisedData> processDataList = getProcessDataList();
+        ArrayList<BaseDataPacket> processDataList = getProcessDataList();
 
         //  - Apply a low pass filter to remove the noise:
         int value = processDataList.get(0).getSoundPower();
-    public ArrayList<BaseDataPacket> getProcessDataList() {
-        return mClhProcessDataList;
-    }
 
         // Check if the first data point surpasses the audioThreshold
         if (value >= audioThreshold) {
             threshold = true;
-    public void addProcessPacketToBuffer(BaseDataPacket data) {
-        if (mClhProcessDataList.size() < mMaxProcAllowable) {
-            mClhProcessDataList.add(data);
         }
 
         for (int i = 1; i < processDataList.size(); ++i) {
@@ -74,5 +68,13 @@ public class ClhProcessData {
         ++NextToProcess;
     }
 
+    public ArrayList<BaseDataPacket> getProcessDataList() {
+        return mClhProcessDataList;
+    }
+
+    public void addProcessPacketToBuffer(BaseDataPacket data) {
+        if (mClhProcessDataList.size() < mMaxProcAllowable) {
+            mClhProcessDataList.add(data);
+        }
     }
 }
