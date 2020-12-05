@@ -7,12 +7,12 @@ import java.util.Arrays;
 public class SoundEventDataPacket extends BaseDataPacket {
     public static final byte PACKET_TYPE = 2;
 
-    private static final int THINGY_ID_POS = 5;
-    private static final int THINGY_DATA_TYPE_POS = 6;
-    private static final int EVENT_AMPLITUDE_POSH = 7; // Amplitude of sound event, high part of int
-    private static final int EVENT_AMPLITUDE_POSL = 8; // Amplitude of sound event, low part of int
-    private static final int EVENT_DURATION_POSH = 9; // Duration of sound event in milliseconds, high half of int
-    private static final int EVENT_DURATION_POSL = 10; // Duration of sound event in milliseconds, low half of int
+    private static final int THINGY_ID_POS = LAST_BASE_PACKET_BYTE_POS + 1;
+    private static final int THINGY_DATA_TYPE_POS = LAST_BASE_PACKET_BYTE_POS + 2;
+    private static final int EVENT_AMPLITUDE_POSH = LAST_BASE_PACKET_BYTE_POS + 3; // Amplitude of sound event, high part of int
+    private static final int EVENT_AMPLITUDE_POSL = LAST_BASE_PACKET_BYTE_POS + 4; // Amplitude of sound event, low part of int
+    private static final int EVENT_DURATION_POSH = LAST_BASE_PACKET_BYTE_POS + 5; // Duration of sound event in milliseconds, high half of int
+    private static final int EVENT_DURATION_POSL = LAST_BASE_PACKET_BYTE_POS + 6; // Duration of sound event in milliseconds, low half of int
 
     public SoundEventDataPacket() {
         setPacketType(PACKET_TYPE);

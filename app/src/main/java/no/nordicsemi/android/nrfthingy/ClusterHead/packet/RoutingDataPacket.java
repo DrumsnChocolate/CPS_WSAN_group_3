@@ -9,13 +9,13 @@ public class RoutingDataPacket extends BaseDataPacket {
      * Position in the data array of the device address ID
      * to which the route should be found.
      */
-    private static final int ROUTE_TO_ID_POS = 5;
+    private static final int ROUTE_TO_ID_POS = LAST_BASE_PACKET_BYTE_POS + 1;
 
     /**
      * Position in the data array of the route data.
      * The route field is the last data field and has a dynamic length.
      */
-    private static final int ROUTE_POS = 6;
+    private static final int ROUTE_POS = LAST_BASE_PACKET_BYTE_POS + 2;
 
     public RoutingDataPacket() {
         setPacketType(PACKET_TYPE);

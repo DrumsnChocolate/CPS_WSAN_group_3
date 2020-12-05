@@ -13,6 +13,7 @@ import android.util.SparseArray;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 
 import no.nordicsemi.android.nrfthingy.ClusterHead.packet.BaseDataPacket;
@@ -40,12 +41,34 @@ public class ClhScan {
     private ArrayList<BaseDataPacket> mClhProcDataList ;
     private ClhProcessData mClhProcessData;
     private ArrayList<BaseDataPacket> mClhAdvDataList;
-    private byte[] mRoutetoSink=null;
-    private static final int MAX_ADVERTISE_LIST_ITEM=128;
+
+    // Hashmap of known routes. Key indicates the source of the route
+    // We may also need to forward packets from the sink back to a clusterhead,
+    // which is why we save all routes
+    private HashMap<Byte, byte[]> mRoutes = new HashMap<>();
+    private static final int MAX_ADVERTISE_LIST_ITEM = 128;
 
     public ClhScan()
     {
+        // Send routing packet to find sink every 2 seconds
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    while (true) {
+                        RoutingDataPacket packet = new RoutingDataPacket();
+                        packet.setDestId(BaseDataPacket.SINK_ID);
+                        packet.setSourceID(mClhID);
+                        packet.setRoute(new byte[] { mClhID });
+                        packet.setRouteToId(BaseDataPacket.SINK_ID);
+                        mClhAdvertiser.addAdvPacketToBuffer(packet, true);
+                        Thread.sleep(2000);
+                    }
+                } catch (InterruptedException e) {
 
+                }
+            }
+        });
     }
 
     public ClhScan(ClhAdvertise clhAdvObj,ClhProcessData clhProcDataObj)
@@ -174,16 +197,19 @@ public class ClhScan {
 
         }
 
-        int receiverID = manufacturerData.keyAt(0);
-        byte sourceDeviceId = (byte) (receiverID >> 8);
-        byte packetId = (byte) (receiverID & 0xFF);
+        BaseDataPacket packet = manufacturerDataToPacket(manufacturerData);
 
         // Reflected data (we received a packet that we sent out)
-        if (mClhID == sourceDeviceId) {
-            Log.i(LOG_TAG, "Reflected data, mClhID " + mClhID + ", recv:" + sourceDeviceId);
+        if (mClhID == packet.getSourceID()) {
+            Log.i(LOG_TAG, "Reflected data, mClhID " + mClhID + ", recv:" + packet.getSourceID());
             return;
         }
-        Log.i(LOG_TAG, "ID data " + sourceDeviceId + "  " + packetId);
+        if (mClhID != packet.getReceiverId() && BaseDataPacket.BROADCAST_ID != packet.getReceiverId()) {
+            // Packet is not for us
+            return;
+        }
+
+        Log.i(LOG_TAG, "ID data " + packet.getSourceID() + "  " + packet.getPacketID());
 
         /* check packet has been yet received by searching the "unique packet ID" history list
         - history list include:
@@ -191,29 +217,14 @@ public class ClhScan {
            Life counter: time of the packet lived in history list
          */
 
-        if (ClhScanHistoryArray.indexOfKey(manufacturerData.keyAt(0)) < 0) {//not yet received
+        int sourceAndPacketId = manufacturerData.keyAt(0);
+        if (ClhScanHistoryArray.indexOfKey(sourceAndPacketId) < 0) {//not yet received
             // History not yet full, update new "unique packet ID" to history list, reset life counter
             if (ClhScanHistoryArray.size() < ClhConst.SCAN_HISTORY_LIST_SIZE) {
-                ClhScanHistoryArray.append(manufacturerData.keyAt(0), 0);
+                ClhScanHistoryArray.append(sourceAndPacketId, 0);
             }
 
-            byte packetType = BaseDataPacket.getPacketTypeFromBT(manufacturerData);
-            BaseDataPacket receivedPacket;
-            switch (packetType) {
-                case RoutingDataPacket.PACKET_TYPE:
-                    receivedPacket = new RoutingDataPacket();
-                    break;
-                case SoundDataPacket.PACKET_TYPE:
-                    receivedPacket = new SoundDataPacket();
-                    break;
-                case SoundEventDataPacket.PACKET_TYPE:
-                    receivedPacket = new SoundEventDataPacket();
-                    break;
-                default:
-                    Log.i(LOG_TAG, "Received packet with unknown packet type "+packetType);
-                    return;
-            }
-            receivedPacket.setDataFromBT(manufacturerData);
+            BaseDataPacket receivedPacket = manufacturerDataToPacket(manufacturerData);
 
             if (receivedPacket instanceof RoutingDataPacket) {
                 // Routing packet
@@ -234,6 +245,27 @@ public class ClhScan {
                 }
             }
         }
+    }
+
+    public BaseDataPacket manufacturerDataToPacket(SparseArray<byte[]> manufacturerData) {
+        byte packetType = BaseDataPacket.getPacketTypeFromBT(manufacturerData);
+        BaseDataPacket packet;
+        switch (packetType) {
+            case RoutingDataPacket.PACKET_TYPE:
+                packet = new RoutingDataPacket();
+                break;
+            case SoundDataPacket.PACKET_TYPE:
+                packet = new SoundDataPacket();
+                break;
+            case SoundEventDataPacket.PACKET_TYPE:
+                packet = new SoundEventDataPacket();
+                break;
+            default:
+                Log.i(LOG_TAG, "Received packet with unknown packet type "+packetType);
+                return null;
+        }
+        packet.setDataFromBT(manufacturerData);
+        return packet;
     }
 
     public void setClhID(byte clhID, boolean isSink){
@@ -265,24 +297,15 @@ public class ClhScan {
             if (routingPacket.getDestinationID() == mClhID) {
                 // A route that we requested was found
                 // Save the route
-                        if(mRoutetoSink == null || routingPacket.getHopCounts() < mRoutetoSink.length) {
-                            setRouteToSink(routingPacket.getRoute());
-                        } else {
-                            Log.i(LOG_TAG, "Route already exists." );
-                        }
-
+                saveRoute(routingPacket.getRoute());
             } else {
                 // Forward the routing packet to the device that requested the route
                 if (routingPacket.routeContains(mClhID)) {
                     // We are in the route, forward the packet back to the source
                     // We should probably also save this route in case a future 'normal' packet
                     // has to be forwarded
-                            // If shorter route arrives later we should exchange packet
-                            if(mRoutetoSink == null || routingPacket.getHopCounts() < mRoutetoSink.length) {
-                                setRouteToSink(routingPacket.getRoute());
-                            } else {
-                                Log.i(LOG_TAG, "Route already exists." );
-                            }
+                    // If shorter route arrives later we should exchange packet
+                    saveRoute(routingPacket.getRoute());
                     mClhAdvertiser.addAdvPacketToBuffer(routingPacket, false);
                 } else {
                     // We are not the best route to the source. Ignore the packet
@@ -296,6 +319,9 @@ public class ClhScan {
         } else {
             // Destination not found yet, add our address to the route and forward it
             routingPacket.addToRoute(mClhID);
+
+            // Save the route so we have a route to the source node
+            saveRoute(routingPacket.getRoute());
 
             if (routingPacket.routeResolved()) {
                 // The route is now resolved, send it back to the source
@@ -324,19 +350,76 @@ public class ClhScan {
     }
 
     private void forwardPacket(BaseDataPacket packet) {
-        // TODO Use route to forward
+        // [source, 1, 2, 3, 0]
+        byte[] route = null;
+        if (packet.getDestinationID() == BaseDataPacket.SINK_ID) {
+            route = mRoutes.get(mClhID);
+        } else {
+            route = mRoutes.get(packet.getDestinationID());
+        }
+
+        if (route == null) {
+            // No route to the destination known, broadcast to all neighbors
+            packet.setReceiverId(BaseDataPacket.BROADCAST_ID);
+        } else {
+            // Route known, find next node
+            int indexOfNode = -1;
+            int indexOfDest = -1;
+            for (int i = 0; i < route.length; i++) {
+                if (route[i] == mClhID) {
+                    indexOfNode = i;
+                } else if (route[i] == packet.getDestinationID()) {
+                    indexOfDest = i;
+                }
+            }
+
+            // The route to the destination is in our route to sink map
+            // Forward the packet to the destination via the next
+            // hop according to our route to the sink
+            byte nextStep = -1;
+            if (indexOfNode < indexOfDest) {
+                nextStep = route[indexOfNode + 1];
+            } else if (indexOfNode > indexOfDest) {
+                nextStep = route[indexOfNode - 1];
+            }
+            packet.setReceiverId(nextStep);
+        }
+
         mClhAdvertiser.addAdvPacketToBuffer(packet, false);
         Log.i(LOG_TAG, "Add data to advertised list, len:" + mClhAdvDataList.size());
         Log.i(LOG_TAG, "Advertise list at " + (mClhAdvDataList.size() - 1) + ":"
                 + Arrays.toString(mClhAdvDataList.get(mClhAdvDataList.size() - 1).getData()));
     }
 
-    private void setRouteToSink(byte[] mRoutetoSink) {
-        this.mRoutetoSink = mRoutetoSink;
-    }
 
-    public byte[] getRouteToSink() {
-        return mRoutetoSink;
+
+    private void saveRoute(byte[] route) {
+        if (route.length == 0) return;
+
+        byte routeSource = route[0];
+        if(!mRoutes.containsKey(routeSource)) {
+            // We do not have a route from this source yet, save it
+            mRoutes.put(routeSource, route);
+            return;
+        }
+
+        // Since we are also saving unresolved routes (routes that don't have the sink node inside)
+        // we should also save the route if the new route is resolved, even though that route
+        // may be longer in list length than the current route
+        byte[] currentRoute = mRoutes.get(routeSource);
+        boolean currentRouteHasSink = false;
+        for (byte item : currentRoute) {
+            if (item == BaseDataPacket.SINK_ID) currentRouteHasSink = true;
+        }
+        boolean newRouteHasSink = false;
+        for (byte item : route) {
+            if (item == BaseDataPacket.SINK_ID) newRouteHasSink = true;
+        }
+
+        if(route.length < currentRoute.length || !currentRouteHasSink && newRouteHasSink) {
+            // Save the route if it is shorter or if it is a resolved route
+            mRoutes.put(routeSource, route);
+        }
     }
 }
 

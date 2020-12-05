@@ -6,10 +6,21 @@ public abstract class BaseDataPacket implements Cloneable {
     protected static final int SOURCE_CLH_ID_POS = 0;
     protected static final int PACKET_CLH_ID_POS = 1;
     protected static final int DEST_CLH_ID_POS = 2;
-    protected static final int PACKET_TYPE_POS = 3;
-    protected static final int HOP_COUNT_POS = 4;
+    protected static final int RECV_CLH_ID_POS = 3;
+    protected static final int PACKET_TYPE_POS = 4;
+    protected static final int HOP_COUNT_POS = 5;
+
+    public static final byte SINK_ID = 0;
+    public static final byte BROADCAST_ID = 127;
+
+    protected static final int LAST_BASE_PACKET_BYTE_POS = HOP_COUNT_POS;
 
     byte[] data = new byte[getDataSize()];
+
+    public BaseDataPacket() {
+        // Broadcast packet by default
+        setReceiverId(BROADCAST_ID);
+    }
 
     /**
      * Set packet type
@@ -37,10 +48,18 @@ public abstract class BaseDataPacket implements Cloneable {
 
     /**
      * Set the ID of the destination to which the packet should be sent
-     * @param destID receiver
+     * @param destID destination
      */
     public void setDestId(byte destID) {
         data[DEST_CLH_ID_POS] = (byte) (destID & 0x7F);
+    }
+
+    /**
+     * Set the ID of the receiver who should forward the packet
+     * @param receiverId receiver
+     */
+    public void setReceiverId(byte receiverId) {
+        data[RECV_CLH_ID_POS] = (byte) (receiverId & 0x7F);
     }
 
     /**
@@ -132,10 +151,18 @@ public abstract class BaseDataPacket implements Cloneable {
 
     /**
      * Get the ID of the destination to which the packet should be sent
-     * @return receiver
+     * @return destination
      */
     public byte getDestinationID() {
         return data[DEST_CLH_ID_POS];
+    }
+
+    /**
+     * Get the ID of the receiver who should forward the packet
+     * @return receiver
+     */
+    public byte getReceiverId() {
+        return data[RECV_CLH_ID_POS];
     }
 
     /**
