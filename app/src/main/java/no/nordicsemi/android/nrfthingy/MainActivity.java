@@ -133,10 +133,12 @@ import static no.nordicsemi.android.nrfthingy.common.Utils.GROUP_ID_ABOUT;
 import static no.nordicsemi.android.nrfthingy.common.Utils.GROUP_ID_ADD_THINGY;
 import static no.nordicsemi.android.nrfthingy.common.Utils.GROUP_ID_DFU;
 import static no.nordicsemi.android.nrfthingy.common.Utils.GROUP_ID_SAVED_THINGIES;
+import static no.nordicsemi.android.nrfthingy.common.Utils.GROUP_ID_WSAN;
 import static no.nordicsemi.android.nrfthingy.common.Utils.INITIAL_CONFIG_FROM_ACTIVITY;
 import static no.nordicsemi.android.nrfthingy.common.Utils.ITEM_ID_ADD_THINGY;
 import static no.nordicsemi.android.nrfthingy.common.Utils.ITEM_ID_DFU;
 import static no.nordicsemi.android.nrfthingy.common.Utils.ITEM_ID_SETTINGS;
+import static no.nordicsemi.android.nrfthingy.common.Utils.ITEM_ID_WSAN;
 import static no.nordicsemi.android.nrfthingy.common.Utils.MOTION_FRAGMENT;
 import static no.nordicsemi.android.nrfthingy.common.Utils.NFC_DIALOG_TAG;
 import static no.nordicsemi.android.nrfthingy.common.Utils.NOTIFICATION_ID;
@@ -701,6 +703,10 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                 Intent aboutActivity = new Intent(MainActivity.this, AboutActivity.class);
                 startActivity(aboutActivity);
                 break;
+            case GROUP_ID_WSAN:
+                Intent wsanControlPanel = new Intent(MainActivity.this, visualisationpic.class);
+                startActivity(wsanControlPanel);
+                break;
             default:
 
                 break;
@@ -1073,6 +1079,10 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         mNavigationView.getMenu().add(GROUP_ID_DFU, ITEM_ID_DFU, total, getString(R.string.settings_dfu)).setIcon(R.drawable.ic_dfu_gray);
         total += total;
         mNavigationView.getMenu().add(GROUP_ID_ABOUT, ITEM_ID_SETTINGS, total, getString(R.string.action_about)).setIcon(R.drawable.ic_info_grey);
+
+        // Add a button to go to the control page for WSAN
+        total += total;
+        mNavigationView.getMenu().add(GROUP_ID_WSAN, ITEM_ID_WSAN, total, getString(R.string.action_wsan)).setIcon(R.drawable.ic_mic_grey);
     }
 
     private void checkFragmentDrawerItem() {
