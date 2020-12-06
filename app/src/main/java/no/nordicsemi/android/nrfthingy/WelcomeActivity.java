@@ -78,6 +78,17 @@ public class WelcomeActivity extends AppCompatActivity {
                     finish();
                 }
             });
+
+            // Implement WSAN button functionality for Welcome activity
+            final TextView wsan_button = findViewById(R.id.wsan_button);
+            wsan_button.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    Intent intent = new Intent(WelcomeActivity.this, visualisationpic.class);
+                    startActivity(intent);
+                    finish();
+                }
+            });
         }
         loadNfcAdapter();
     }

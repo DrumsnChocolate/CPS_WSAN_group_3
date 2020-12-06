@@ -44,26 +44,14 @@
     android:paddingTop="@dimen/activity_vertical_margin"
     tools:context="no.nordicsemi.android.nrfthingy.WelcomeActivity">
 
-    <TextView
-        android:id="@+id/continue_tv"
-        android:layout_width="match_parent"
-        android:layout_height="?actionBarSize"
-        android:layout_alignParentBottom="true"
-        android:layout_centerHorizontal="true"
-        android:background="?attr/selectableItemBackground"
-        android:clickable="true"
-        android:focusable="true"
-        android:gravity="center"
-        android:text="@string/continue_text"
-        android:textAppearance="?android:attr/textAppearanceMedium"/>
 
     <View
         android:id="@+id/view"
         android:layout_width="match_parent"
         android:layout_height="1dp"
-        android:layout_above="@id/continue_tv"
+        android:layout_above="@id/button_container"
         android:layout_gravity="center_horizontal"
-        android:background="@color/onBackground"/>
+        android:background="@color/onBackground" />
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -77,10 +65,10 @@
             android:layout_width="wrap_content"
             android:layout_height="0dp"
             android:layout_gravity="center"
-            android:layout_marginTop="70dp"
+            android:layout_marginTop="30dp"
             android:layout_weight="1"
             android:scaleType="centerInside"
-            app:srcCompat="@drawable/nordic_welcome"/>
+            app:srcCompat="@drawable/nordic_welcome" />
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -105,7 +93,52 @@
                 android:layout_marginTop="@dimen/activity_vertical_margin"
                 android:text="@string/welcome_summary"
                 android:textAppearance="?android:attr/textAppearanceSmall"/>
+
+            <TextView
+                android:id="@+id/altered_by_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginTop="@dimen/activity_vertical_margin"
+                android:gravity="center_horizontal"
+                android:text="@string/altered_by"
+                android:textAlignment="center"
+                android:textAppearance="?android:attr/textAppearanceSmall" />
+
+
         </LinearLayout>
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/button_container"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:layout_alignParentBottom="true"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/continue_tv"
+            android:layout_width="0dp"
+            android:layout_height="?actionBarSize"
+            android:layout_weight="0.5"
+            android:background="?attr/selectableItemBackground"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center"
+            android:text="@string/continue_text"
+            android:textAppearance="?android:attr/textAppearanceMedium" />
+
+        <TextView
+            android:id="@+id/wsan_button"
+            android:layout_width="0dp"
+            android:layout_height="?actionBarSize"
+            android:layout_weight="0.5"
+            android:background="?attr/selectableItemBackground"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center"
+            android:text="@string/action_wsan"
+            android:textAppearance="?android:attr/textAppearanceMedium" />
     </LinearLayout>
 
 </RelativeLayout>
