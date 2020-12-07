@@ -82,6 +82,7 @@ public class ClhProcessData {
     public void process(byte[] data) {/*
         ArrayList<BaseDataPacket> processDataList = getProcessDataList();
 
+        /*
         //  - Apply a low pass filter to remove the noise:
         int value = processDataList.get(0).getSoundPower();
 
