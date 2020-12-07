@@ -76,11 +76,11 @@ import android.widget.Toast;
 import com.getkeepsafe.taptargetview.TapTarget;
 import com.getkeepsafe.taptargetview.TapTargetSequence;
 
-import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Objects;
 
 import no.nordicsemi.android.nrfthingy.ClusterHead.ClhAdvertise;
-import no.nordicsemi.android.nrfthingy.ClusterHead.packet.BaseDataPacket;
+import no.nordicsemi.android.nrfthingy.ClusterHead.packet.ActuateThingyPacket;
 import no.nordicsemi.android.nrfthingy.ClusterHead.packet.SoundDataPacket;
 import no.nordicsemi.android.nrfthingy.ClusterHead.ClhConst;
 import no.nordicsemi.android.nrfthingy.ClusterHead.ClhProcessData;
@@ -107,6 +107,7 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
     private static final float ALPHA_MAX = 0.60f;
     private static final float ALPHA_MIN = 0.0f;
     private static final int DURATION = 800;
+    private static final int SINK_PROCESS_INTERVAL = 1000; // Number of ms between packet processing
 
     private ImageView mMicrophone;
     private ImageView mMicrophoneOverlay;
@@ -457,26 +458,22 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
         mClhScanner=mClh.getClhScanner();
         mClhProcessor=mClh.getClhProcessor();
 
-        //timer 1000 ms for SINK to process receive data(display data to text box)
+        //timer 1000 ms for SINK to process received data
         final Handler handler=new Handler();
-        handler. postDelayed(new Runnable() {
+        handler.postDelayed(new Runnable() {
             @Override
             public void run() {
-                handler.postDelayed(this, 1000); //loop every cycle
+                handler.postDelayed(this, SINK_PROCESS_INTERVAL); //loop every cycle
                 if(mIsSink)
                 {
-                    ArrayList<BaseDataPacket> procList=mClhProcessor.getProcessDataList();
-                    for(int i=0; i<procList.size();i++)
-                    {
-                        if(i==10) break; //just display 10 line in one cycle
-                        byte[] data=procList.get(0).getData();
-                        mClhLog.append(Arrays.toString(data));
-                        mClhLog.append("\r\n");
-                        procList.remove(0);
+                    ActuateThingyPacket thingyPacket = mClhProcessor.getLoudestThingy();
+                    if (thingyPacket != null) {
+                        // Send packet if it exists
+                        mClhAdvertiser.addAdvPacketToBuffer(thingyPacket, true);
                     }
                 }
             }
-        }, 1000); //the time you want to delay in milliseconds
+        }, SINK_PROCESS_INTERVAL); //the time you want to delay in milliseconds
 
         //"Start" button Click Handler
         // get Cluster Head ID (0-127) in text box to initialize advertiser

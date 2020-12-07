@@ -299,12 +299,14 @@ public class ClhScan {
     /**
      * Handle a received Sound Event package
      *
-     * @param soundEventPacket The package
+     * @param soundEventPacket The packet
      */
     private void handleSoundEventPacket(SoundEventDataPacket soundEventPacket) {
         if (mIsSink) {
-            // If this Cluster Head is the Sink node (ID=0), add data to waiting process list
+            // If this Cluster Head is the Sink node (ID=0), add the data to the buffer
+            // There it is compared to other incoming data
             mClhProcessData.addProcessPacketToBuffer(soundEventPacket);
+            Log.i(LOG_TAG, "Received a Sound Event with amplitude " + soundEventPacket.getAmplitude() + " and duration " + soundEventPacket.getDuration());
             Log.i(LOG_TAG, "Add event to process list, new lenght:" + mClhProcDataList.size());
         } else {
             forwardPacket(soundEventPacket);
