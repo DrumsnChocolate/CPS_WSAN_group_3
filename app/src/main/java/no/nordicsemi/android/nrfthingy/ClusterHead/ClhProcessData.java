@@ -1,14 +1,22 @@
 package no.nordicsemi.android.nrfthingy.ClusterHead;
 
-import java.util.ArrayList;
+import android.util.Log;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+
+import no.nordicsemi.android.nrfthingy.ClusterHead.packet.ActuateThingyPacket;
 import no.nordicsemi.android.nrfthingy.ClusterHead.packet.BaseDataPacket;
+import no.nordicsemi.android.nrfthingy.ClusterHead.packet.SoundEventDataPacket;
 
 public class ClhProcessData {
 
     public static final int MAX_PROCESS_LIST_ITEM = ClhConst.MAX_PROCESS_LIST_ITEM;
+    private final String LOG_TAG="ClH Processor:";
+
     private int mMaxProcAllowable = MAX_PROCESS_LIST_ITEM;
     private ArrayList<BaseDataPacket> mClhProcessDataList;
+
     private int NextToProcess = 0;
     private int[] FilteredData;
     private int audioThreshold = 0; // Set threshold for the sound
@@ -25,9 +33,53 @@ public class ClhProcessData {
         mMaxProcAllowable = maxProcAllowable;
         mClhProcessDataList = ClhProcessDataList;
     }
-    
+
+    /**
+     * Find the loudest thingy in the current buffer
+     *
+     * @return ActuateThingyPacket When a thingy was found, returns a packet to be transmitted
+     * @return null Returns null when no thingy could be found
+     */
+    public ActuateThingyPacket getLoudestThingy() {
+        ArrayList<BaseDataPacket> procList = getProcessDataList();
+
+        byte thingyIdToActuate = -1;
+        int greatestAmplitude = 0;
+
+        // Loop through all packets in the buffer
+        for(int i = 0; i < procList.size(); i++) {
+            BaseDataPacket packet = procList.get(i);
+            if (packet instanceof SoundEventDataPacket) {
+                SoundEventDataPacket soundEventPacket = (SoundEventDataPacket) packet;
+
+                if (soundEventPacket.getAmplitude() > greatestAmplitude) {
+                    greatestAmplitude = soundEventPacket.getAmplitude();
+                    thingyIdToActuate = soundEventPacket.getThingyId();
+                }
+
+                // Remove this packet, since it has fulfilled its purpose
+                procList.remove(i);
+
+            } else {
+                Log.i(LOG_TAG, "There's a type "+ packet.getPacketType() +" packet in the buffer that I'm not sure how to process");
+            }
+
+        }
+
+        ActuateThingyPacket actuateThingyPacket;
+        if (thingyIdToActuate >= 0) {
+            actuateThingyPacket = new ActuateThingyPacket();
+            actuateThingyPacket.setThingyId(thingyIdToActuate);
+        } else {
+            actuateThingyPacket = null;
+        }
+
+        return actuateThingyPacket;
+    }
+
+
     // A method that analyses the data in the sink:
-    public void process(byte[] data) {
+    public void process(byte[] data) {/*
         ArrayList<BaseDataPacket> processDataList = getProcessDataList();
 
         //  - Apply a low pass filter to remove the noise:
@@ -66,10 +118,15 @@ public class ClhProcessData {
             threshold = false;
         }
         ++NextToProcess;
+        */
     }
 
     public ArrayList<BaseDataPacket> getProcessDataList() {
         return mClhProcessDataList;
+    }
+
+    public void clearProcessDataList() {
+        mClhProcessDataList.clear();
     }
 
     public void addProcessPacketToBuffer(BaseDataPacket data) {
