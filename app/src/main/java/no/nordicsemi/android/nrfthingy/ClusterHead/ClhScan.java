@@ -197,19 +197,19 @@ public class ClhScan {
 
         }
 
-        BaseDataPacket packet = manufacturerDataToPacket(manufacturerData);
+        BaseDataPacket receivedPacket = manufacturerDataToPacket(manufacturerData);
 
         // Reflected data (we received a packet that we sent out)
-        if (mClhID == packet.getSourceID()) {
-            Log.i(LOG_TAG, "Reflected data, mClhID " + mClhID + ", recv:" + packet.getSourceID());
+        if (mClhID == receivedPacket.getSourceID()) {
+            Log.i(LOG_TAG, "Reflected data, mClhID " + mClhID + ", recv:" + receivedPacket.getSourceID());
             return;
         }
-        if (mClhID != packet.getReceiverId() && BaseDataPacket.BROADCAST_ID != packet.getReceiverId()) {
+        if (mClhID != receivedPacket.getReceiverId() && BaseDataPacket.BROADCAST_ID != receivedPacket.getReceiverId()) {
             // Packet is not for us
             return;
         }
 
-        Log.i(LOG_TAG, "ID data " + packet.getSourceID() + "  " + packet.getPacketID());
+        Log.i(LOG_TAG, "ID data " + receivedPacket.getSourceID() + "  " + receivedPacket.getPacketID());
 
         /* check packet has been yet received by searching the "unique packet ID" history list
         - history list include:
@@ -223,8 +223,6 @@ public class ClhScan {
             if (ClhScanHistoryArray.size() < ClhConst.SCAN_HISTORY_LIST_SIZE) {
                 ClhScanHistoryArray.append(sourceAndPacketId, 0);
             }
-
-            BaseDataPacket receivedPacket = manufacturerDataToPacket(manufacturerData);
 
             if (receivedPacket instanceof RoutingDataPacket) {
                 // Routing packet
