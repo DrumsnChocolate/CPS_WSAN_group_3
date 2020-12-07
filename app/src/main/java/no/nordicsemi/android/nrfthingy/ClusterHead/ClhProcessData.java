@@ -37,8 +37,7 @@ public class ClhProcessData {
     /**
      * Find the loudest thingy in the current buffer
      *
-     * @return ActuateThingyPacket When a thingy was found, returns a packet to be transmitted
-     * @return null Returns null when no thingy could be found
+     * @return ActuateThingyPacket|null When a thingy was found, returns a packet to be transmitted, null otherwise
      */
     public ActuateThingyPacket getLoudestThingy() {
         ArrayList<BaseDataPacket> procList = getProcessDataList();
@@ -81,6 +80,7 @@ public class ClhProcessData {
     // A method that analyses the data in the sink:
     public void process(byte[] data) {/*
         ArrayList<BaseDataPacket> processDataList = getProcessDataList();
+
 
         //  - Apply a low pass filter to remove the noise:
         int value = processDataList.get(0).getSoundPower();
