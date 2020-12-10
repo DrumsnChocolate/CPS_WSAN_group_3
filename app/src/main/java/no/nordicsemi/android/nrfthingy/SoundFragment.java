@@ -76,15 +76,15 @@ import android.widget.Toast;
 import com.getkeepsafe.taptargetview.TapTarget;
 import com.getkeepsafe.taptargetview.TapTargetSequence;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 
 import no.nordicsemi.android.nrfthingy.ClusterHead.ClhAdvertise;
-import no.nordicsemi.android.nrfthingy.ClusterHead.ClhAdvertisedData;
+import no.nordicsemi.android.nrfthingy.ClusterHead.packet.ActuateThingyPacket;
 import no.nordicsemi.android.nrfthingy.ClusterHead.ClhConst;
 import no.nordicsemi.android.nrfthingy.ClusterHead.ClhProcessData;
 import no.nordicsemi.android.nrfthingy.ClusterHead.ClhScan;
 import no.nordicsemi.android.nrfthingy.ClusterHead.ClusterHead;
+import no.nordicsemi.android.nrfthingy.ClusterHead.packet.SoundEventDataPacket;
 import no.nordicsemi.android.nrfthingy.common.MessageDialogFragment;
 import no.nordicsemi.android.nrfthingy.common.PermissionRationaleDialogFragment;
 import no.nordicsemi.android.nrfthingy.common.Utils;
@@ -106,6 +106,7 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
     private static final float ALPHA_MAX = 0.60f;
     private static final float ALPHA_MIN = 0.0f;
     private static final int DURATION = 800;
+    private static final int SINK_PROCESS_INTERVAL = 1000; // Number of ms between packet processing
 
     private ImageView mMicrophone;
     private ImageView mMicrophoneOverlay;
@@ -246,8 +247,13 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
 
                     //PSG edit No.1
                     //audio receive event
-                    if( mStartPlayingAudio = true)
-                         mClhAdvertiser.addAdvSoundData(data);
+                    if( mStartPlayingAudio = true) {
+                        int[] processedData;
+                        processedData = mClhProcessor.initialProcess(data);    // Process the data in the first clusterhead
+                        if (processedData[0] == 1) {
+                            mClhAdvertiser.addProcessedData(data, processedData, mClh); // TODO change to new version for SoundEventDataPacket
+                        }
+                    }
                     //End PSG edit No.1
 
                 }
@@ -300,14 +306,14 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
     private TextView mClhLog;
     private final String LOG_TAG="CLH Sound";
 
-    private ClhAdvertisedData mClhData=new ClhAdvertisedData();
+    private SoundEventDataPacket mClhData = new SoundEventDataPacket();
     private boolean mIsSink=false;
     private byte mClhID=2;
     private byte mClhDestID=0;
     private byte mClhHops=0;
     private byte mClhThingyID=1;
     private byte mClhThingyType=1;
-    private int mClhThingySoundPower=100;
+    private int mClhThingyAmplitude =100;
     ClusterHead mClh;
     ClhAdvertise mClhAdvertiser;
     ClhScan mClhScanner;
@@ -434,7 +440,7 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
             if (mStartRecordingAudio) {
                 if (mThingySdkManager.isConnected(mDevice)) {
                     startMicrophoneOverlayAnimation();
-                    sendAudiRecordingBroadcast();
+                    sendAudioRecordingBroadcast();
                 }
             }
         }
@@ -454,28 +460,19 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
         mClhScanner=mClh.getClhScanner();
         mClhProcessor=mClh.getClhProcessor();
 
-        //timer 1000 ms for SINK to process receive data(display data to text box)
+        //timer for SINK to process received data
         final Handler handler=new Handler();
-        handler. postDelayed(new Runnable() {
+        handler.postDelayed(new Runnable() {
             @Override
             public void run() {
-                handler.postDelayed(this, 1000); //loop every cycle
-                if(mIsSink)
-                {
-                    ArrayList<ClhAdvertisedData> procList=mClhProcessor.getProcessDataList();
-                    for(int i=0; i<procList.size();i++)
-                    {
-                        if(i==10) break; //just display 10 line in one cycle
-                        byte[] data=procList.get(0).getParcelClhData();
-                        mClhLog.append(Arrays.toString(data));
-                        mClhLog.append("\r\n");
-                        procList.remove(0);
-                    }
+                handler.postDelayed(this, SINK_PROCESS_INTERVAL); //loop every cycle
+                if(mIsSink) {
+                    processSinkBuffer();
                 }
             }
-        }, 1000); //the time you want to delay in milliseconds
+        }, SINK_PROCESS_INTERVAL); //the time you want to delay in milliseconds
 
-        //"Start" button Click Hander
+        //"Start" button Click Handler
         // get Cluster Head ID (0-127) in text box to initialize advertiser
         //Then Start advertising
         //ID=0: Sink
@@ -504,7 +501,7 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
                         int num = Integer.valueOf(strEnteredVal);
                         if (num>127) num=mClhID;
                         mClhID = (byte) num;
-                        mIsSink = mClh.setClhID(mClhID);
+                        mIsSink = mClh.setClhID(mClhID, true);
                         Log.i(LOG_TAG, "set ClhID:"+mClhID);
                     }
 
@@ -512,24 +509,24 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
                     if(mClhID==127) {
                         //mClhID = 1;
                         byte clhPacketID=1;
-                        mClhThingySoundPower = 100;
+                        mClhThingyAmplitude = 100;
                         mClhData.setSourceID(mClhID);
                         mClhData.setPacketID(clhPacketID);
                         mClhData.setDestId(mClhDestID);
                         mClhData.setHopCount(mClhHops);
                         mClhData.setThingyId(mClhThingyID);
                         mClhData.setThingyDataType(mClhThingyType);
-                        mClhData.setSoundPower(mClhThingySoundPower);
+                        mClhData.setAmplitude(mClhThingyAmplitude);
+                        mClhData.setDuration(750);
                         mClhAdvertiser.addAdvPacketToBuffer(mClhData,true);
                         for (int i = 0; i < 100; i++) {
-                            ClhAdvertisedData clh = new ClhAdvertisedData();
-                            clh.Copy(mClhData);
+                            SoundEventDataPacket clh = mClhData.clone();
                             //Log.i(LOG_TAG, "Array old:" + Arrays.toString(clh.getParcelClhData()));
-                            mClhThingySoundPower += 10;
-                            clh.setSoundPower(mClhThingySoundPower);
+                            mClhThingyAmplitude += 10;
+                            clh.setAmplitude(mClhThingyAmplitude);
                             mClhAdvertiser.addAdvPacketToBuffer(clh,true);
 
-                            Log.i(LOG_TAG, "Add array:" + Arrays.toString(clh.getParcelClhData()));
+                            Log.i(LOG_TAG, "Add array:" + Arrays.toString(clh.getData()));
                             Log.i(LOG_TAG, "Array new size:" + mClhAdvertiser.getAdvertiseList().size());
                         }
                       }
@@ -552,7 +549,7 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
         return rootView;
     }
 
-    private void sendAudiRecordingBroadcast() {
+    private void sendAudioRecordingBroadcast() {
         Intent startAudioRecording = new Intent(getActivity(), ThingyMicrophoneService.class);
         startAudioRecording.setAction(Utils.START_RECORDING);
         startAudioRecording.putExtra(Utils.EXTRA_DEVICE, mDevice);
@@ -633,7 +630,7 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
 
     private void startRecording() {
         startMicrophoneOverlayAnimation();
-        sendAudiRecordingBroadcast();
+        sendAudioRecordingBroadcast();
         mStartRecordingAudio = true;
     }
 
@@ -788,4 +785,13 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
             }).start();
         }
     }
+
+    private void processSinkBuffer() {
+        ActuateThingyPacket thingyPacket = mClhProcessor.getLoudestThingy();
+        if (thingyPacket != null) {
+            // Send packet if it exists
+            mClhAdvertiser.addAdvPacketToBuffer(thingyPacket, true);
+        }
+    }
+
 }

@@ -1,50 +1,177 @@
 package no.nordicsemi.android.nrfthingy.ClusterHead;
 
-import android.os.Handler;
 import android.util.Log;
-import android.util.SparseArray;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+
+import no.nordicsemi.android.nrfthingy.ClusterHead.packet.ActuateThingyPacket;
+import no.nordicsemi.android.nrfthingy.ClusterHead.packet.BaseDataPacket;
+import no.nordicsemi.android.nrfthingy.ClusterHead.packet.SoundDataPacket;
+import no.nordicsemi.android.nrfthingy.ClusterHead.packet.SoundEventDataPacket;
 
 public class ClhProcessData {
 
-    public static final int MAX_PROCESS_LIST_ITEM=128;
-    private int mMaxProcAllowable=MAX_PROCESS_LIST_ITEM;
-    private ArrayList<ClhAdvertisedData> mClhProcessDataList;
+    public static final int MAX_PROCESS_LIST_ITEM = ClhConst.MAX_PROCESS_LIST_ITEM;
+    private final String LOG_TAG="ClH Processor:";
+
+    private int mMaxProcAllowable = MAX_PROCESS_LIST_ITEM;
+    private ArrayList<BaseDataPacket> mClhProcessDataList;
+
+    private int NextToProcess = 0;
+    private int[] FilteredData;
+    private int audioThreshold = 0; // TODO Set threshold for the sound
+    int smoothingSetting = 2;       // Set how smooth the filter should make the data
+    private boolean threshold = false;
 
 
-
-    public ClhProcessData()
-    {
-        mClhProcessDataList=new ArrayList<ClhAdvertisedData>(MAX_PROCESS_LIST_ITEM);
+    public ClhProcessData() {
+        mClhProcessDataList = new ArrayList<BaseDataPacket>(MAX_PROCESS_LIST_ITEM);
 
     }
 
-    public ClhProcessData(ArrayList<ClhAdvertisedData> ClhProcessDataList,int maxProcAllowable)
-    {
-        mMaxProcAllowable=maxProcAllowable;
-        mClhProcessDataList=ClhProcessDataList;
+    public ClhProcessData(ArrayList<BaseDataPacket> ClhProcessDataList, int maxProcAllowable) {
+        mMaxProcAllowable = maxProcAllowable;
+        mClhProcessDataList = ClhProcessDataList;
     }
 
-    public ArrayList<ClhAdvertisedData> getProcessDataList()
-    {
+    /**
+     * Find the loudest thingy in the current buffer
+     *
+     * @return ActuateThingyPacket|null When a thingy was found, returns a packet to be transmitted, null otherwise
+     */
+    public ActuateThingyPacket getLoudestThingy() {
+        ArrayList<BaseDataPacket> procList = getProcessDataList();
+
+        SoundEventDataPacket greatestAmplitudePacket = new SoundEventDataPacket();
+        greatestAmplitudePacket.setAmplitude(0);
+        greatestAmplitudePacket.setThingyId((byte) -1);
+
+        // Loop through all packets in the buffer
+        for(int i = 0; i < procList.size(); i++) {
+            BaseDataPacket packet = procList.get(i);
+            if (packet instanceof SoundEventDataPacket) {
+                SoundEventDataPacket soundEventPacket = (SoundEventDataPacket) packet;
+
+                if (soundEventPacket.getAmplitude() > greatestAmplitudePacket.getAmplitude()) {
+                    greatestAmplitudePacket = soundEventPacket;
+                }
+
+                // Remove this packet, since it has fulfilled its purpose
+                procList.remove(i);
+
+                Log.i(LOG_TAG, "Processed a Sound Event packet with packet ID "+ packet.getPacketID());
+            } else {
+                Log.i(LOG_TAG, "There's a type "+ packet.getPacketType() +" packet in the buffer that I'm not sure how to process");
+            }
+
+        }
+
+        ActuateThingyPacket actuateThingyPacket;
+        if (greatestAmplitudePacket.getThingyId() >= 0) {
+            // Populate Actuate packet with necessary data
+            actuateThingyPacket = new ActuateThingyPacket();
+            actuateThingyPacket.setThingyId(greatestAmplitudePacket.getThingyId());
+            actuateThingyPacket.setSourceID((byte) 0);
+            actuateThingyPacket.setDestId(greatestAmplitudePacket.getSourceID());
+
+        } else {
+            actuateThingyPacket = null;
+        }
+
+        return actuateThingyPacket;
+    }
+
+
+
+    // A method that analyses the data in the first clusterhead
+    public int[] initialProcess(final byte[] data){
+        int[] result = {0, 0};
+        int event = 0, amplitude = 0, duration = 0, counter = 0;
+
+        // Check sound level:
+        for (int i = 0; i < data.length; ++i) {
+            if (data[i] >= audioThreshold) {
+                result[0] = 1;
+            }
+            if (Math.abs(data[i]) > Math.abs(amplitude)) {
+                amplitude = data[i];
+            }
+            if (amplitude > 0) {
+                ++counter;
+            } else {
+                if (counter > duration) {
+                    duration = counter;
+                }
+                counter = 0;
+            }
+        }
+
+        // check all sorts of things with the data to determine if an event happened
+        if (amplitude > 0 && duration > 0) {
+            result[1] = amplitude;
+            result[2] = duration;
+        }
+
+        return result;
+    }
+
+
+    // A method that analyses the data in the sink:
+    public void process() {/*
+        ArrayList<BaseDataPacket> processDataList = getProcessDataList();
+
+
+        //  - Apply a low pass filter to remove the noise:
+        int value = processDataList.get(0).getSoundPower();
+
+        // Check if the first data point surpasses the audioThreshold
+        if (value >= audioThreshold) {
+            threshold = true;
+        }
+
+        for (int i = 1; i < processDataList.size(); ++i) {
+            int currentValue = processDataList.get(i).getSoundPower();
+
+            // Check if the next data point surpasses the audioThreshold
+            if (currentValue >= audioThreshold) {
+                threshold = true;
+            }
+
+            value += (currentValue - value) / smoothingSetting;
+            FilteredData[i] = value;
+        }
+
+        //  - detecting a change in statistics (mean, variance, etc.)
+        //  - outlier detection and machine learning (need data clustering for this, see: http://java-ml.sourceforge.net/)
+        //  - pattern recognition (in time and/or frequency spectrum)
+        //      * cross-correlation?
+        //      * Fourier Transform?
+
+        // Based on the data processing above, check if an event has happened:
+        if (threshold) { // Add all other specifications with && and ||
+            //      - send correct data to be visualized
+            //      - notify the right thingy to light the LED
+        }
+        else {
+            //      - remove useless data and reset everything
+            threshold = false;
+        }
+        ++NextToProcess;
+        */
+    }
+
+    public ArrayList<BaseDataPacket> getProcessDataList() {
         return mClhProcessDataList;
     }
 
-    public void addProcessPacketToBuffer(ClhAdvertisedData data)
-    {
-        if(mClhProcessDataList.size()<mMaxProcAllowable) {
+    public void clearProcessDataList() {
+        mClhProcessDataList.clear();
+    }
+
+    public void addProcessPacketToBuffer(BaseDataPacket data) {
+        if (mClhProcessDataList.size() < mMaxProcAllowable) {
             mClhProcessDataList.add(data);
         }
     }
-
-    private void outputTotextbox(){
-        for(int i=0;i<mClhProcessDataList.size();i++)
-        {
-            if(i==10) break; //maximum output 10 string at one tick
-
-
-        }
-    }
-
 }
