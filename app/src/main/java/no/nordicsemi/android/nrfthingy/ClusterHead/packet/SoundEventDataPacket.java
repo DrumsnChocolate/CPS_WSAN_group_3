@@ -33,7 +33,6 @@ public class SoundEventDataPacket extends BaseDataPacket {
     public void setAmplitude(int amplitude) {
         data[EVENT_AMPLITUDE_POSH] = (byte) (amplitude >> 8);
         data[EVENT_AMPLITUDE_POSL] = (byte) (amplitude & 0x00FF);
-        Log.i("Sound power:", "Sound event amplitude:" + amplitude);
     }
 
     public int getAmplitude() {
@@ -43,7 +42,6 @@ public class SoundEventDataPacket extends BaseDataPacket {
     public void setDuration(int duration) {
         data[EVENT_DURATION_POSH] = (byte) (duration >> 8);
         data[EVENT_DURATION_POSL] = (byte) (duration & 0x00FF);
-        Log.i("Sound power:", "Sound event duration:" + duration);
     }
 
     public int getDuration() {
