@@ -1,9 +1,14 @@
 package no.nordicsemi.android.nrfthingy.ClusterHead;
 
+import android.bluetooth.BluetoothDevice;
+
 import java.util.ArrayList;
 
 import no.nordicsemi.android.nrfthingy.ClusterHead.packet.BaseDataPacket;
-import no.nordicsemi.android.nrfthingy.ClusterHead.packet.SoundDataPacket;
+import no.nordicsemi.android.nrfthingy.ClusterHead.packet.ClusteringDataPacket;
+import no.nordicsemi.android.nrfthingy.thingy.Thingy;
+import no.nordicsemi.android.thingylib.BaseThingyService;
+import no.nordicsemi.android.thingylib.ThingySdkManager;
 
 public class ClusterHead {
     private static final int MAX_ADVERTISE_LIST_ITEM=ClhConst.MAX_ADVERTISE_LIST_ITEM; //max items in waiting list for advertising
@@ -17,6 +22,9 @@ public class ClusterHead {
 
     private final ArrayList<BaseDataPacket> mClhProcDataList =new ArrayList<>(MAX_PROCESS_LIST_ITEM);
     private final ClhProcessData mClhProcessData=new ClhProcessData(mClhProcDataList,MAX_PROCESS_LIST_ITEM);
+
+    private final ArrayList<BluetoothDevice> cluster = new ArrayList<>();
+
     public ClusterHead(){}
 
     //construtor,
@@ -25,6 +33,7 @@ public class ClusterHead {
     {
         if(id>127) id-=127;
         setClhID(id);
+
     }
 
 
@@ -41,14 +50,26 @@ public class ClusterHead {
     // init Cluster Head BLE: include
     // init Advertiser
     // init Scanner
+    // init ClusterScanner
     public int initClhBLE(long advertiseInterval)
     {
         int error;
+
+        error=initThingyScanner();
+        if(error!=ClhErrors.ERROR_CLH_NO) return error;
+
         error=initClhBLEAdvertiser(advertiseInterval);
         if(error!=ClhErrors.ERROR_CLH_NO) return error;
 
-        error=initClhBLEScaner();
+        error= initClhBLEScanner();
         if(error!=ClhErrors.ERROR_CLH_NO) return error;
+        return error;
+    }
+
+    private int initThingyScanner() {
+        int error;
+        mClhScanner.setClusterHead(this);
+        error=mClhScanner.thingy_scan();
         return error;
     }
 
@@ -64,7 +85,7 @@ public class ClusterHead {
         return error;
     }
 
-    public int initClhBLEScaner() {
+    public int initClhBLEScanner() {
         int error;
         mClhScanner.setAdvDataObject(mClhAdvertiser);
         mClhScanner.setProcDataObject(mClhProcessData);
@@ -97,4 +118,16 @@ public class ClusterHead {
         mClhAdvertiser.clearAdvList();
     }
 
+    public void addToCluster(BluetoothDevice device) {
+        cluster.add(device);
+    }
+
+    public void startAdvertisingCluster() {
+        ClusteringDataPacket clusteringDataPacket = new ClusteringDataPacket();
+        for (BluetoothDevice device : cluster) {
+            clusteringDataPacket.addThingyToData(device);
+        }
+        mClhAdvertiser.addAdvPacketToBuffer(clusteringDataPacket,true);
+        mClhAdvertiser.stopAdvertiseClhData();
+    }
 }
