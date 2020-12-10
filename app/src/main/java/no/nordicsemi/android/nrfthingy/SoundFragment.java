@@ -47,7 +47,6 @@ import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.content.res.Resources;
-import android.graphics.Color;
 import android.os.Bundle;
 import android.os.Handler;
 import androidx.annotation.NonNull;
@@ -78,15 +77,14 @@ import com.getkeepsafe.taptargetview.TapTarget;
 import com.getkeepsafe.taptargetview.TapTargetSequence;
 
 import java.util.Arrays;
-import java.util.Objects;
 
 import no.nordicsemi.android.nrfthingy.ClusterHead.ClhAdvertise;
 import no.nordicsemi.android.nrfthingy.ClusterHead.packet.ActuateThingyPacket;
-import no.nordicsemi.android.nrfthingy.ClusterHead.packet.SoundDataPacket;
 import no.nordicsemi.android.nrfthingy.ClusterHead.ClhConst;
 import no.nordicsemi.android.nrfthingy.ClusterHead.ClhProcessData;
 import no.nordicsemi.android.nrfthingy.ClusterHead.ClhScan;
 import no.nordicsemi.android.nrfthingy.ClusterHead.ClusterHead;
+import no.nordicsemi.android.nrfthingy.ClusterHead.packet.SoundEventDataPacket;
 import no.nordicsemi.android.nrfthingy.common.MessageDialogFragment;
 import no.nordicsemi.android.nrfthingy.common.PermissionRationaleDialogFragment;
 import no.nordicsemi.android.nrfthingy.common.Utils;
@@ -94,7 +92,6 @@ import no.nordicsemi.android.nrfthingy.sound.FrequencyModeFragment;
 import no.nordicsemi.android.nrfthingy.sound.PcmModeFragment;
 import no.nordicsemi.android.nrfthingy.sound.SampleModeFragment;
 import no.nordicsemi.android.nrfthingy.sound.ThingyMicrophoneService;
-import no.nordicsemi.android.nrfthingy.thingy.Thingy;
 import no.nordicsemi.android.nrfthingy.widgets.VoiceVisualizer;
 import no.nordicsemi.android.thingylib.ThingyListener;
 import no.nordicsemi.android.thingylib.ThingyListenerHelper;
@@ -309,14 +306,14 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
     private TextView mClhLog;
     private final String LOG_TAG="CLH Sound";
 
-    private SoundDataPacket mClhData=new SoundDataPacket();
+    private SoundEventDataPacket mClhData = new SoundEventDataPacket();
     private boolean mIsSink=false;
     private byte mClhID=2;
     private byte mClhDestID=0;
     private byte mClhHops=0;
     private byte mClhThingyID=1;
     private byte mClhThingyType=1;
-    private int mClhThingySoundPower=100;
+    private int mClhThingyAmplitude =100;
     ClusterHead mClh;
     ClhAdvertise mClhAdvertiser;
     ClhScan mClhScanner;
@@ -511,20 +508,21 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
                     if(mClhID==127) {
                         //mClhID = 1;
                         byte clhPacketID=1;
-                        mClhThingySoundPower = 100;
+                        mClhThingyAmplitude = 100;
                         mClhData.setSourceID(mClhID);
                         mClhData.setPacketID(clhPacketID);
                         mClhData.setDestId(mClhDestID);
                         mClhData.setHopCount(mClhHops);
                         mClhData.setThingyId(mClhThingyID);
                         mClhData.setThingyDataType(mClhThingyType);
-                        mClhData.setSoundPower(mClhThingySoundPower);
+                        mClhData.setAmplitude(mClhThingyAmplitude);
+                        mClhData.setDuration(750);
                         mClhAdvertiser.addAdvPacketToBuffer(mClhData,true);
                         for (int i = 0; i < 100; i++) {
-                            SoundDataPacket clh = (SoundDataPacket) mClhData.clone();
+                            SoundEventDataPacket clh = mClhData.clone();
                             //Log.i(LOG_TAG, "Array old:" + Arrays.toString(clh.getParcelClhData()));
-                            mClhThingySoundPower += 10;
-                            clh.setSoundPower(mClhThingySoundPower);
+                            mClhThingyAmplitude += 10;
+                            clh.setAmplitude(mClhThingyAmplitude);
                             mClhAdvertiser.addAdvPacketToBuffer(clh,true);
 
                             Log.i(LOG_TAG, "Add array:" + Arrays.toString(clh.getData()));
