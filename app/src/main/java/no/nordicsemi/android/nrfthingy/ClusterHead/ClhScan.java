@@ -262,27 +262,28 @@ public class ClhScan {
         mClhAdvDataList=mClhAdvertiser.getAdvertiseList();
 
 
-        // Send routing packet to find sink every 2 seconds
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    while (true) {
-                        Log.i(LOG_TAG, "Sending routing packet!");
-                        RoutingDataPacket packet = new RoutingDataPacket();
-                        packet.setDestId(BaseDataPacket.SINK_ID);
-                        packet.setSourceID(mClhID);
-                        packet.setRoute(new byte[] { mClhID });
-                        packet.setRouteToId(BaseDataPacket.SINK_ID);
-                        mClhAdvertiser.addAdvPacketToBuffer(packet, true);
-                        Thread.sleep(2000);
+        if (mClhID != BaseDataPacket.SINK_ID) {
+            // Send routing packet to find sink every 2 seconds
+            new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        while (true) {
+                            Log.i(LOG_TAG, "Sending routing packet!");
+                            RoutingDataPacket packet = new RoutingDataPacket();
+                            packet.setDestId(BaseDataPacket.SINK_ID);
+                            packet.setSourceID(mClhID);
+                            packet.setRoute(new byte[]{mClhID});
+                            packet.setRouteToId(BaseDataPacket.SINK_ID);
+                            mClhAdvertiser.addAdvPacketToBuffer(packet, true);
+                            Thread.sleep(2000);
+                        }
+                    } catch (InterruptedException e) {
+
                     }
-                } catch (InterruptedException e) {
-
                 }
-            }
-        }).start();
-
+            }).start();
+        }
     }
 
     //set alias to Clh processor
