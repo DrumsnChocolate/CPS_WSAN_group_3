@@ -191,11 +191,6 @@ public class ClhScan {
             return;
         }
 
-        if (receivedPacket == null) {
-            Log.i(LOG_TAG, "Received empty packet");
-            return;
-        }
-
         // Reflected data (we received a packet that we sent out)
         if (mClhID == receivedPacket.getSourceID()) {
             Log.i(LOG_TAG, "Reflected data, mClhID " + mClhID + ", recv:" + receivedPacket.getSourceID());
