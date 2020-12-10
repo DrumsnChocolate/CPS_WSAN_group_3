@@ -6,7 +6,7 @@
     android:layout_height="match_parent">
 
     <com.github.mikephil.charting.charts.BarChart
-        android:id="@+id/bargraph"
+        android:id="@+id/bargraph1"
         android:layout_width="match_parent"
         android:layout_height="350dp"
         android:layout_marginTop="8dp"
@@ -17,7 +17,7 @@
         app:layout_constraintTop_toTopOf="parent"></com.github.mikephil.charting.charts.BarChart>
 
     <com.github.mikephil.charting.charts.BarChart
-        android:id="@+id/bargraph"
+        android:id="@+id/bargraph2"
         android:layout_width="match_parent"
         android:layout_height="350dp"
         android:layout_marginTop="365dp"
