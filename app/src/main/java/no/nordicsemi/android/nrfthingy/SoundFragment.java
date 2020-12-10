@@ -47,6 +47,7 @@ import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.content.res.Resources;
+import android.graphics.Color;
 import android.os.Bundle;
 import android.os.Handler;
 import androidx.annotation.NonNull;
@@ -93,6 +94,7 @@ import no.nordicsemi.android.nrfthingy.sound.FrequencyModeFragment;
 import no.nordicsemi.android.nrfthingy.sound.PcmModeFragment;
 import no.nordicsemi.android.nrfthingy.sound.SampleModeFragment;
 import no.nordicsemi.android.nrfthingy.sound.ThingyMicrophoneService;
+import no.nordicsemi.android.nrfthingy.thingy.Thingy;
 import no.nordicsemi.android.nrfthingy.widgets.VoiceVisualizer;
 import no.nordicsemi.android.thingylib.ThingyListener;
 import no.nordicsemi.android.thingylib.ThingyListenerHelper;
@@ -460,19 +462,14 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
         mClhScanner=mClh.getClhScanner();
         mClhProcessor=mClh.getClhProcessor();
 
-        //timer 1000 ms for SINK to process received data
+        //timer for SINK to process received data
         final Handler handler=new Handler();
         handler.postDelayed(new Runnable() {
             @Override
             public void run() {
                 handler.postDelayed(this, SINK_PROCESS_INTERVAL); //loop every cycle
-                if(mIsSink)
-                {
-                    ActuateThingyPacket thingyPacket = mClhProcessor.getLoudestThingy();
-                    if (thingyPacket != null) {
-                        // Send packet if it exists
-                        mClhAdvertiser.addAdvPacketToBuffer(thingyPacket, true);
-                    }
+                if(mIsSink) {
+                    processSinkBuffer();
                 }
             }
         }, SINK_PROCESS_INTERVAL); //the time you want to delay in milliseconds
@@ -789,4 +786,13 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
             }).start();
         }
     }
+
+    private void processSinkBuffer() {
+        ActuateThingyPacket thingyPacket = mClhProcessor.getLoudestThingy();
+        if (thingyPacket != null) {
+            // Send packet if it exists
+            mClhAdvertiser.addAdvPacketToBuffer(thingyPacket, true);
+        }
+    }
+
 }

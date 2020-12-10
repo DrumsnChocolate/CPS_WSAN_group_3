@@ -43,8 +43,9 @@ public class ClhProcessData {
     public ActuateThingyPacket getLoudestThingy() {
         ArrayList<BaseDataPacket> procList = getProcessDataList();
 
-        byte thingyIdToActuate = -1;
-        int greatestAmplitude = 0;
+        SoundEventDataPacket greatestAmplitudePacket = new SoundEventDataPacket();
+        greatestAmplitudePacket.setAmplitude(0);
+        greatestAmplitudePacket.setThingyId((byte) -1);
 
         // Loop through all packets in the buffer
         for(int i = 0; i < procList.size(); i++) {
@@ -52,14 +53,14 @@ public class ClhProcessData {
             if (packet instanceof SoundEventDataPacket) {
                 SoundEventDataPacket soundEventPacket = (SoundEventDataPacket) packet;
 
-                if (soundEventPacket.getAmplitude() > greatestAmplitude) {
-                    greatestAmplitude = soundEventPacket.getAmplitude();
-                    thingyIdToActuate = soundEventPacket.getThingyId();
+                if (soundEventPacket.getAmplitude() > greatestAmplitudePacket.getAmplitude()) {
+                    greatestAmplitudePacket = soundEventPacket;
                 }
 
                 // Remove this packet, since it has fulfilled its purpose
                 procList.remove(i);
 
+                Log.i(LOG_TAG, "Processed a Sound Event packet with packet ID "+ packet.getPacketID());
             } else {
                 Log.i(LOG_TAG, "There's a type "+ packet.getPacketType() +" packet in the buffer that I'm not sure how to process");
             }
@@ -67,9 +68,13 @@ public class ClhProcessData {
         }
 
         ActuateThingyPacket actuateThingyPacket;
-        if (thingyIdToActuate >= 0) {
+        if (greatestAmplitudePacket.getThingyId() >= 0) {
+            // Populate Actuate packet with necessary data
             actuateThingyPacket = new ActuateThingyPacket();
-            actuateThingyPacket.setThingyId(thingyIdToActuate);
+            actuateThingyPacket.setThingyId(greatestAmplitudePacket.getThingyId());
+            actuateThingyPacket.setSourceID((byte) 0);
+            actuateThingyPacket.setDestId(greatestAmplitudePacket.getSourceID());
+
         } else {
             actuateThingyPacket = null;
         }
