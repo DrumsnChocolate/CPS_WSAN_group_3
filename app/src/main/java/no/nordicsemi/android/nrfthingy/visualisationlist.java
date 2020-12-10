@@ -20,5 +20,9 @@ public class visualisationlist extends AppCompatActivity {
         list.add("scream");//addhere reference to event
         bullshit.setAdapter(listarray);
 
+        list.add("scream");
+        list.add("not a scream");
+        list.add("scream");
+
 
 }}
