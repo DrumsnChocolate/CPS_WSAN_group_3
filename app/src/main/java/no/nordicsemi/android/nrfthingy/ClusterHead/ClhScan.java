@@ -236,6 +236,10 @@ public class ClhScan {
                 if (mIsSink) {
                     // If this Cluster Head is the Sink node (ID=0), add data to waiting process list
                     mClhProcessData.addProcessPacketToBuffer(receivedPacket);
+
+                    // Process the newly added data in the sink
+                    mClhProcessData.process();
+
                     Log.i(LOG_TAG, "Add data to process list, len:" + mClhProcDataList.size());
                 } else {
                     // Normal Cluster Head (ID 1..127), forward data

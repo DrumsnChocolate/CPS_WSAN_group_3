@@ -7,6 +7,7 @@ import java.util.Arrays;
 
 import no.nordicsemi.android.nrfthingy.ClusterHead.packet.ActuateThingyPacket;
 import no.nordicsemi.android.nrfthingy.ClusterHead.packet.BaseDataPacket;
+import no.nordicsemi.android.nrfthingy.ClusterHead.packet.SoundDataPacket;
 import no.nordicsemi.android.nrfthingy.ClusterHead.packet.SoundEventDataPacket;
 
 public class ClhProcessData {
@@ -19,7 +20,7 @@ public class ClhProcessData {
 
     private int NextToProcess = 0;
     private int[] FilteredData;
-    private int audioThreshold = 0; // Set threshold for the sound
+    private int audioThreshold = 0; // TODO Set threshold for the sound
     int smoothingSetting = 2;       // Set how smooth the filter should make the data
     private boolean threshold = false;
 
@@ -77,8 +78,42 @@ public class ClhProcessData {
     }
 
 
+
+    // A method that analyses the data in the first clusterhead
+    public int[] initialProcess(final byte[] data){
+        int[] result = {0, 0};
+        int event = 0, amplitude = 0, duration = 0, counter = 0;
+
+        // Check sound level:
+        for (int i = 0; i < data.length; ++i) {
+            if (data[i] >= audioThreshold) {
+                result[0] = 1;
+            }
+            if (Math.abs(data[i]) > Math.abs(amplitude)) {
+                amplitude = data[i];
+            }
+            if (amplitude > 0) {
+                ++counter;
+            } else {
+                if (counter > duration) {
+                    duration = counter;
+                }
+                counter = 0;
+            }
+        }
+
+        // check all sorts of things with the data to determine if an event happened
+        if (amplitude > 0 && duration > 0) {
+            result[1] = amplitude;
+            result[2] = duration;
+        }
+
+        return result;
+    }
+
+
     // A method that analyses the data in the sink:
-    public void process(byte[] data) {/*
+    public void process() {/*
         ArrayList<BaseDataPacket> processDataList = getProcessDataList();
 
 

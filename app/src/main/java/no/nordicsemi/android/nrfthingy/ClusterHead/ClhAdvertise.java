@@ -16,6 +16,7 @@ import java.util.UUID;
 
 import no.nordicsemi.android.nrfthingy.ClusterHead.packet.BaseDataPacket;
 import no.nordicsemi.android.nrfthingy.ClusterHead.packet.SoundDataPacket;
+import no.nordicsemi.android.nrfthingy.ClusterHead.packet.SoundEventDataPacket;
 
 
 public class ClhAdvertise {
@@ -263,6 +264,62 @@ public class ClhAdvertise {
                  0: ADV_SETTING_SENDTXPOWER_NO (default)
                  1: ADV_SETTING_SENDTXPOWER_YES
  --------*/
+
+    //----------------------------------------------------
+    // parcel Sound data and add to waiting list for advertising
+    private static int mProcessedSoundcount=0;
+    public void addProcessedData(byte[]data, int[] processedData) //TODO adjust for the processed data
+    {
+
+        if((data!=null) && data.length>0) {
+            //in this demo, only the first data from the sound stream is used for sending
+            byte[] arr=new byte[4];
+            arr[3]=data[0];
+            arr[2]=data[1];
+            arr[0]=arr[1] = 0;
+            int sounddata=ByteBuffer.wrap(arr).getInt();
+
+            if (sounddata>32767) sounddata=sounddata-65535;
+            //Log.i(LOG_TAG,"sound data:"+sounddata);
+
+            if(mProcessedSoundcount++==100)
+            {//wait 100 dataset to reduce the load, update the sound data to advertising list
+                SoundEventDataPacket advData = new SoundEventDataPacket();
+                advData.setSourceID(mClhID);
+                advData.setDestId((byte) 0);
+                advData.setThingyDataType((byte) 10);
+                advData.setThingyId((byte) 1);
+                advData.setHopCount((byte) 0);
+
+                advData.setAmplitude(processedData[1]);
+                advData.setDuration(processedData[2]);
+
+
+                addAdvPacketToBuffer(advData,true); // TODO change to method for SoundEventDataPacket
+                BaseDataPacket temp=mClhAdvDataList.get(mClhAdvDataList.size()-1);
+                Log.i(LOG_TAG,"add new sound data:"+ Arrays.toString( temp.getData()));
+                mSoundcount=0;
+            }
+        }
+    }
+
+    /*----------
+ Start advertising "data"
+ @param
+  data[]: data
+  settings[]: advertising mode
+             [0]: ADV_SETTING_BYTE_ENERGY,Energy mode:
+                     LOW_POWER_MODE ADV_SETTING_ENERGY_LOWPOWER (default)
+                     BALANCE_MODE ADV_SETTING_ENERGY_BALANCE
+                     HIGH_LATENCY_MODE ADV_SETTING_ENERGY_LOWLATENCY
+             [1]: ADV_SETTING_BYTE_SENDNAME,send name:
+                 0: ADV_SETTING_SENDNAME_NO
+                 1: ADV_SETTING_SENDNAME_YES (default)
+             [2]: ADV_SETTING_BYTE_SENDTXPOWER,send TxPower
+                 0: ADV_SETTING_SENDTXPOWER_NO (default)
+                 1: ADV_SETTING_SENDTXPOWER_YES
+ --------*/
+
     private int startAdvertiser(byte[] settings, byte[] data) {
         //setting and start advertiser
         //@param: settings: configuration
