@@ -216,4 +216,8 @@
         app:headerLayout="@layout/header_layout"
         app:itemTextColor="@color/menu_item_text" />
 
+
 </androidx.drawerlayout.widget.DrawerLayout>
+
+
+
