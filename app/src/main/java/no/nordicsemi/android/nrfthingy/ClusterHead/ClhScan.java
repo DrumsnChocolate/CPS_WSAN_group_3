@@ -333,8 +333,10 @@ public class ClhScan {
             return;
         } else {
             Log.i(LOG_TAG, "Forwarding incomplete routing packet");
-            // Destination not found yet, add our address to the route and forward it
+            // Destination not found yet, add our address to the route and forward it4
+            Log.i(LOG_TAG, "Adding "+mClhID+" to "+Arrays.toString(routingPacket.getRoute()));
             routingPacket.addToRoute(mClhID);
+            Log.i(LOG_TAG, "New route: "+Arrays.toString(routingPacket.getRoute()));
 
             // Save the route so we have a route to the source node
             saveRoute(routingPacket.getRoute());

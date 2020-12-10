@@ -91,8 +91,7 @@ public class RoutingDataPacket extends BaseDataPacket {
         byte[] newData = Arrays.copyOf(data, getDataSize() + 1);
 
         // Set add the address to the route
-        newData[getDataSize() - 1] = address;
-
+        newData[newData.length - 1] = address;
         data = newData;
     }
 
