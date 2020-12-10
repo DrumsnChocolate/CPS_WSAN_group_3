@@ -704,7 +704,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                 startActivity(aboutActivity);
                 break;
             case GROUP_ID_WSAN:
-                Intent wsanControlPanel = new Intent(MainActivity.this, visualisationpic.class);
+                Intent wsanControlPanel = new Intent(MainActivity.this, visualisationlist.class);
                 startActivity(wsanControlPanel);
                 break;
             default:
