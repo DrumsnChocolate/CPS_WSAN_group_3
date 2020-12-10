@@ -251,18 +251,11 @@ public class ClhScan {
         return packet;
     }
 
-    public void setClhID(byte clhID, boolean isSink){
+    public void setClhID(byte clhID, boolean isSink, boolean startClicked){
         mClhID=clhID;
         mIsSink=isSink;
-    }
 
-    //set alias to Clh advertiser
-    public void setAdvDataObject(ClhAdvertise clhAdvObj){
-        mClhAdvertiser=clhAdvObj;
-        mClhAdvDataList=mClhAdvertiser.getAdvertiseList();
-
-
-        if (mClhID != BaseDataPacket.SINK_ID) {
+        if (mClhID != BaseDataPacket.SINK_ID && startClicked) {
             // Send routing packet to find sink every 2 seconds
             new Thread(new Runnable() {
                 @Override
@@ -284,6 +277,12 @@ public class ClhScan {
                 }
             }).start();
         }
+    }
+
+    //set alias to Clh advertiser
+    public void setAdvDataObject(ClhAdvertise clhAdvObj){
+        mClhAdvertiser=clhAdvObj;
+        mClhAdvDataList=mClhAdvertiser.getAdvertiseList();
     }
 
     //set alias to Clh processor

@@ -24,7 +24,7 @@ public class ClusterHead {
     public ClusterHead(byte id)
     {
         if(id>127) id-=127;
-        setClhID(id);
+        setClhID(id, false);
     }
 
 
@@ -68,7 +68,7 @@ public class ClusterHead {
         int error;
         mClhScanner.setAdvDataObject(mClhAdvertiser);
         mClhScanner.setProcDataObject(mClhProcessData);
-        mClhScanner.setClhID(mClhID,mIsSink);
+        mClhScanner.setClhID(mClhID, mIsSink, false);
         error=mClhScanner.BLE_scan();
 
         return error;
@@ -79,12 +79,12 @@ public class ClusterHead {
     }
 
     public ArrayList<BaseDataPacket> getAdvertiseList() {return mClhAdvDataList;}
-    public final boolean setClhID(byte id){
+    public final boolean setClhID(byte id, boolean startClicked){
         mClhID=id;
         if (mClhID == 0) mIsSink = true;
         else mIsSink = false;
         if(mClhAdvertiser!=null)    mClhAdvertiser.setAdvClhID(mClhID,mIsSink);
-        if(mClhScanner!=null) mClhScanner.setClhID(mClhID,mIsSink);
+        if(mClhScanner!=null) mClhScanner.setClhID(mClhID,mIsSink, startClicked);
         return mIsSink;
 
     }
