@@ -21,6 +21,7 @@ import no.nordicsemi.android.nrfthingy.ClusterHead.packet.BaseDataPacket;
 import no.nordicsemi.android.nrfthingy.ClusterHead.packet.RoutingDataPacket;
 import no.nordicsemi.android.nrfthingy.ClusterHead.packet.SoundDataPacket;
 import no.nordicsemi.android.nrfthingy.ClusterHead.packet.SoundEventDataPacket;
+import no.nordicsemi.android.nrfthingy.SoundFragment;
 
 public class ClhScan {
     private static final int LED_BURN_TIME = 1000; // Number of ms for Thingy LED to burn
@@ -44,6 +45,7 @@ public class ClhScan {
     private ArrayList<BaseDataPacket> mClhProcDataList ;
     private ClhProcessData mClhProcessData;
     private ArrayList<BaseDataPacket> mClhAdvDataList;
+    private SoundFragment mSoundFragment;
 
     // Hashmap of known routes. Key indicates the source of the route
     // We may also need to forward packets from the sink back to a clusterhead,
@@ -275,7 +277,7 @@ public class ClhScan {
                 @Override
                 public void run() {
                     try {
-                        while (true) {
+                        while (mSoundFragment.getStartButtonState() == true) {
                             Log.i(LOG_TAG, "Sending routing packet!");
                             RoutingDataPacket packet = new RoutingDataPacket();
                             packet.setDestId(BaseDataPacket.SINK_ID);
@@ -303,6 +305,10 @@ public class ClhScan {
     public void setProcDataObject(ClhProcessData clhProObj){
         mClhProcessData=clhProObj;
         mClhProcDataList=mClhProcessData.getProcessDataList();
+    }
+
+    public void setSoundFragmentObject(SoundFragment soundFragmentObject) {
+        mSoundFragment = soundFragmentObject;
     }
 
     /**

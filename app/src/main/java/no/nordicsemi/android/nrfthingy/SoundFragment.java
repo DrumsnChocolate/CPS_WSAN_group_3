@@ -305,6 +305,7 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
     private EditText mClhIDInput;
     private TextView mClhLog;
     private final String LOG_TAG="CLH Sound";
+    private boolean startButtonState;
 
     private SoundEventDataPacket mClhData = new SoundEventDataPacket();
     private boolean mIsSink=false;
@@ -453,7 +454,7 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
         mClhLog= rootView.findViewById(R.id.logClh_text);
 
         //initial Clusterhead: advertiser, scanner, processor
-        mClh=new ClusterHead(mClhID);
+        mClh=new ClusterHead(mClhID, this);
         mClh.initClhBLE(ClhConst.ADVERTISING_INTERVAL);
         mClhAdvertiser=mClh.getClhAdvertiser();
         mClhScanner=mClh.getClhScanner();
@@ -486,6 +487,7 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
                 if (mAdvertiseButton.getText().toString().equals("Start")) {
                     mAdvertiseButton.setText("Stop");
                     mClhIDInput.setEnabled(false);
+                    startButtonState = true;
 
                     mClh.clearClhAdvList(); //empty list before starting
 
@@ -537,6 +539,7 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
                     mAdvertiseButton.setText("Start");
                     mClhIDInput.setEnabled(true);
                     mClhAdvertiser.stopAdvertiseClhData();
+                    startButtonState = false;
                 }
             }
         });
@@ -791,6 +794,10 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
             // Send packet if it exists
             mClhAdvertiser.addAdvPacketToBuffer(thingyPacket, true);
         }
+    }
+
+    public boolean getStartButtonState() {
+        return startButtonState;
     }
 
 }
