@@ -14,15 +14,21 @@ import com.github.mikephil.charting.data.BarEntry;
 import java.util.ArrayList;
 
 public class visualisationpic extends AppCompatActivity {
-    BarChart barChart;
+    BarChart barChart1;
+    BarChart barChart2;
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.visualisationpicture);
-        barChart = (BarChart) findViewById(R.id.bargraph);
-        ArrayList<BarEntry>barEntries =new ArrayList<>();
-        barEntries.add(new BarEntry(44f,0));
-        barEntries.add(new BarEntry(88f,1));
-        BarDataSet barDataSet = new BarDataSet(barEntries,"thingies");
+        barChart1 = (BarChart) findViewById(R.id.bargraph1);
+        barChart2 = (BarChart) findViewById(R.id.bargraph2);
+        ArrayList<BarEntry>barEntries2 = new ArrayList<>();
+        barEntries2.add(new BarEntry(44f,0));
+        barEntries2.add(new BarEntry(88f,1));
+        BarDataSet barDataSet2 = new BarDataSet(barEntries2,"thingies");
+        ArrayList<BarEntry>barEntries1 =new ArrayList<>();
+        barEntries1.add(new BarEntry(44f,0));
+        barEntries1.add(new BarEntry(44f,1));
+        BarDataSet barDataSet1 = new BarDataSet(barEntries1,"thingies");
         ArrayList<String> thethingies = new ArrayList<>();
         thethingies.add("thingy1");
         thethingies.add("thingy2");
@@ -44,7 +50,8 @@ public class visualisationpic extends AppCompatActivity {
         thethingies.add("thingy18");
         thethingies.add("thingy19");
         thethingies.add("thingy20");
-        BarData theData = new BarData(thethingies,barDataSet);
-        barChart.setData(theData);
-
+        BarData theData1 = new BarData(thethingies,barDataSet1);
+        BarData theData2 = new BarData(thethingies,barDataSet2);
+        barChart1.setData(theData1);
+        barChart2.setData(theData2);
     }}
