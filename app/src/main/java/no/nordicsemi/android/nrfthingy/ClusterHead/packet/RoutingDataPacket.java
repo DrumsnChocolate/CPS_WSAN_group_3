@@ -43,7 +43,7 @@ public class RoutingDataPacket extends BaseDataPacket {
      * @return list of addresses the packet has travelled through
      */
     public byte[] getRoute() {
-        return Arrays.copyOfRange(data, ROUTE_POS, getDataSize() - ROUTE_POS);
+        return Arrays.copyOfRange(data, ROUTE_POS, getDataSize());
     }
 
     /**
