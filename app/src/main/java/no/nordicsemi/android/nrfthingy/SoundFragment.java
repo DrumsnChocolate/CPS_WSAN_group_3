@@ -504,7 +504,7 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
                         int num = Integer.valueOf(strEnteredVal);
                         if (num>127) num=mClhID;
                         mClhID = (byte) num;
-                        mIsSink = mClh.setClhID(mClhID);
+                        mIsSink = mClh.setClhID(mClhID, true);
                         Log.i(LOG_TAG, "set ClhID:"+mClhID);
                     }
 
