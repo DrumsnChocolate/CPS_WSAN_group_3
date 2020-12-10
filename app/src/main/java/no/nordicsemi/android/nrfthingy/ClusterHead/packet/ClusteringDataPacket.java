@@ -29,10 +29,4 @@ public class ClusteringDataPacket extends BaseDataPacket {
         return -1;
         //TODO implement
     }
-
-    @Override
-    public void setDataFromBT(SparseArray<byte[]> data) {
-        super.setDataFromBT(data);
-
-    }
 }
