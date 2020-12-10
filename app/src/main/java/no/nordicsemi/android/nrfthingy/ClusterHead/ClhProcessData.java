@@ -86,7 +86,7 @@ public class ClhProcessData {
 
     // A method that analyses the data in the first clusterhead
     public int[] initialProcess(final byte[] data){
-        int[] result = {0, 0};
+        int[] result = {0, 0, 0};
         int event = 0, amplitude = 0, duration = 0, counter = 0;
 
         // Check sound level:
@@ -97,7 +97,7 @@ public class ClhProcessData {
             if (Math.abs(data[i]) > Math.abs(amplitude)) {
                 amplitude = data[i];
             }
-            if (amplitude > 0) {
+            if (Math.abs(amplitude) > audioThreshold) {
                 ++counter;
             } else {
                 if (counter > duration) {

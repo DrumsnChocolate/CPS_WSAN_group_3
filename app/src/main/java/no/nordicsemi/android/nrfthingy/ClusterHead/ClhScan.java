@@ -191,6 +191,11 @@ public class ClhScan {
             return;
         }
 
+        if (receivedPacket == null) {
+            Log.i(LOG_TAG, "Received empty packet");
+            return;
+        }
+
         // Reflected data (we received a packet that we sent out)
         if (mClhID == receivedPacket.getSourceID()) {
             Log.i(LOG_TAG, "Reflected data, mClhID " + mClhID + ", recv:" + receivedPacket.getSourceID());
@@ -232,9 +237,6 @@ public class ClhScan {
                 if (mIsSink) {
                     // If this Cluster Head is the Sink node (ID=0), add data to waiting process list
                     mClhProcessData.addProcessPacketToBuffer(receivedPacket);
-
-                    // Process the newly added data in the sink
-                    mClhProcessData.process();
 
                     Log.i(LOG_TAG, "Add data to process list, len:" + mClhProcDataList.size());
                 } else {
