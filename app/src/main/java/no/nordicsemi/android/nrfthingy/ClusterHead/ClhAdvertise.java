@@ -268,38 +268,23 @@ public class ClhAdvertise {
     //----------------------------------------------------
     // parcel Sound data and add to waiting list for advertising
     private static int mProcessedSoundcount=0;
-    public void addProcessedData(byte[]data, int[] processedData) //TODO adjust for the processed data
-    {
+    public void addProcessedData(byte[]data, int[] processedData, ClusterHead processedClh) {
 
         if((data!=null) && data.length>0) {
-            //in this demo, only the first data from the sound stream is used for sending
-            byte[] arr=new byte[4];
-            arr[3]=data[0];
-            arr[2]=data[1];
-            arr[0]=arr[1] = 0;
-            int sounddata=ByteBuffer.wrap(arr).getInt();
+            SoundEventDataPacket advData = new SoundEventDataPacket();
+            advData.setSourceID(processedClh.getClhID());   // Get the ID of the current ClusterHead that is processing the data
+            advData.setDestId((byte) 0);    // The sink has ID 0
+            advData.setThingyDataType((byte) 10);   // Set the data type
+            advData.setThingyId((byte) 1);  // TODO add ThingyID when Thingy is added to SoundFragment
+            advData.setHopCount((byte) 0);  // The data is processed in the first ClusterHead, so the HopCount is still 0
 
-            if (sounddata>32767) sounddata=sounddata-65535;
-            //Log.i(LOG_TAG,"sound data:"+sounddata);
+            advData.setAmplitude(processedData[1]); // Set the amplitude
+            advData.setDuration(processedData[2]);  // Set the duration of the sound
 
-            if(mProcessedSoundcount++==100)
-            {//wait 100 dataset to reduce the load, update the sound data to advertising list
-                SoundEventDataPacket advData = new SoundEventDataPacket();
-                advData.setSourceID(mClhID);
-                advData.setDestId((byte) 0);
-                advData.setThingyDataType((byte) 10);
-                advData.setThingyId((byte) 1);
-                advData.setHopCount((byte) 0);
+            addAdvPacketToBuffer(advData, true);    // Advertise the data
 
-                advData.setAmplitude(processedData[1]);
-                advData.setDuration(processedData[2]);
-
-
-                addAdvPacketToBuffer(advData,true); // TODO change to method for SoundEventDataPacket
-                BaseDataPacket temp=mClhAdvDataList.get(mClhAdvDataList.size()-1);
-                Log.i(LOG_TAG,"add new sound data:"+ Arrays.toString( temp.getData()));
-                mSoundcount=0;
-            }
+            BaseDataPacket temp = mClhAdvDataList.get(mClhAdvDataList.size() - 1);
+            Log.i(LOG_TAG, "add new sound data:" + Arrays.toString(temp.getData()));
         }
     }
 

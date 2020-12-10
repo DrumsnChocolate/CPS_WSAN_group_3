@@ -252,7 +252,7 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
                         int[] processedData;
                         processedData = mClhProcessor.initialProcess(data);    // Process the data in the first clusterhead
                         if (processedData[0] == 1) {
-                            mClhAdvertiser.addProcessedData(data, processedData); // TODO change to new version for SoundEventDataPacket
+                            mClhAdvertiser.addProcessedData(data, processedData, mClh); // TODO change to new version for SoundEventDataPacket
                         }
                     }
                     //End PSG edit No.1
