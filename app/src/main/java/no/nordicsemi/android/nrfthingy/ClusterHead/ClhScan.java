@@ -183,6 +183,12 @@ public class ClhScan {
 
         BaseDataPacket receivedPacket = manufacturerDataToPacket(manufacturerData);
 
+        // For some reason it sometimes happens that receivedPacket is null, so check for that first
+        if (receivedPacket == null) {
+            Log.i(LOG_TAG, "Received an empty packet");
+            return;
+        }
+
         // Reflected data (we received a packet that we sent out)
         if (mClhID == receivedPacket.getSourceID()) {
             Log.i(LOG_TAG, "Reflected data, mClhID " + mClhID + ", recv:" + receivedPacket.getSourceID());
@@ -207,8 +213,6 @@ public class ClhScan {
             if (ClhScanHistoryArray.size() < ClhConst.SCAN_HISTORY_LIST_SIZE) {
                 ClhScanHistoryArray.append(sourceAndPacketId, 0);
             }
-
-            BaseDataPacket receivedPacket = manufacturerDataToPacket(manufacturerData);
 
             Log.i(LOG_TAG, "Handling packet");
             if (receivedPacket instanceof RoutingDataPacket) {
