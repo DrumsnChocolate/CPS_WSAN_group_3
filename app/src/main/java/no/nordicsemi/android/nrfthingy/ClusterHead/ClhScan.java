@@ -226,6 +226,10 @@ public class ClhScan {
             } else if (receivedPacket instanceof SoundEventDataPacket) {
                 // Packet with sound event data
                 handleSoundEventPacket((SoundEventDataPacket) receivedPacket);
+            } else if (receivedPacket instanceof ClusteringDataPacket) {
+                handleClusteringPacket((ClusteringDataPacket) receivedPacket);
+                // Also forward the packet to other nodes.
+                forwardPacket(receivedPacket);
             } else {
                 // Normal packet
 
@@ -241,6 +245,9 @@ public class ClhScan {
             }
         }
     }
+
+
+
 
     public BaseDataPacket manufacturerDataToPacket(SparseArray<byte[]> manufacturerData) {
         byte packetType = BaseDataPacket.getPacketTypeFromBT(manufacturerData);
@@ -266,9 +273,9 @@ public class ClhScan {
         return packet;
     }
 
-    public void setClhID(byte clhID, boolean isSink, boolean startClicked){
-        mClhID=clhID;
-        mIsSink=isSink;
+    public void setClhID(byte clhID, boolean isSink, boolean startClicked) {
+        mClhID = clhID;
+        mIsSink = isSink;
 
         if (mClhID != BaseDataPacket.SINK_ID && startClicked) {
             // Send routing packet to find sink every 2 seconds
@@ -295,11 +302,10 @@ public class ClhScan {
     }
 
 
-
     //set alias to Clh advertiser
-    public void setAdvDataObject(ClhAdvertise clhAdvObj){
-        mClhAdvertiser=clhAdvObj;
-        mClhAdvDataList=mClhAdvertiser.getAdvertiseList();
+    public void setAdvDataObject(ClhAdvertise clhAdvObj) {
+        mClhAdvertiser = clhAdvObj;
+        mClhAdvDataList = mClhAdvertiser.getAdvertiseList();
     }
 
     //set alias to Clh processor
@@ -315,8 +321,8 @@ public class ClhScan {
      */
     private void handleRoutingPacket(RoutingDataPacket routingPacket) {
         Log.i(LOG_TAG, "Handling routing packet");
-        Log.i(LOG_TAG, "Data: "+Arrays.toString(routingPacket.getData()));
-        Log.i(LOG_TAG, "Route: "+Arrays.toString(routingPacket.getRoute()));
+        Log.i(LOG_TAG, "Data: " + Arrays.toString(routingPacket.getData()));
+        Log.i(LOG_TAG, "Route: " + Arrays.toString(routingPacket.getRoute()));
 
         if (routingPacket.routeResolved()) {
             Log.i(LOG_TAG, "Route is resolved");
@@ -350,9 +356,9 @@ public class ClhScan {
         } else {
             Log.i(LOG_TAG, "Forwarding incomplete routing packet");
             // Destination not found yet, add our address to the route and forward it4
-            Log.i(LOG_TAG, "Adding "+mClhID+" to "+Arrays.toString(routingPacket.getRoute()));
+            Log.i(LOG_TAG, "Adding " + mClhID + " to " + Arrays.toString(routingPacket.getRoute()));
             routingPacket.addToRoute(mClhID);
-            Log.i(LOG_TAG, "New route: "+Arrays.toString(routingPacket.getRoute()));
+            Log.i(LOG_TAG, "New route: " + Arrays.toString(routingPacket.getRoute()));
 
             // Save the route so we have a route to the source node
             saveRoute(routingPacket.getRoute());
@@ -387,10 +393,16 @@ public class ClhScan {
         }
     }
 
+    private void handleClusteringPacket(ClusteringDataPacket clusteringDataPacket) {
+        Log.i(LOG_TAG, clusteringDataPacket.toString());
+
+        // TODO implement
+    }
+
     private void forwardPacket(BaseDataPacket packet) {
         // [source, 1, 2, 3, 0]
         byte[] route = null;
-        Log.i(LOG_TAG, "Forwarding packet with destination "+packet.getDestinationID());
+        Log.i(LOG_TAG, "Forwarding packet with destination " + packet.getDestinationID());
         if (packet.getDestinationID() == BaseDataPacket.SINK_ID) {
             route = mRoutes.get(mClhID);
         } else {
@@ -402,7 +414,7 @@ public class ClhScan {
             Log.i(LOG_TAG, "No route found, flooding network");
             packet.setReceiverId(BaseDataPacket.BROADCAST_ID);
         } else {
-            Log.i(LOG_TAG, "Route found: "+Arrays.toString(route));
+            Log.i(LOG_TAG, "Route found: " + Arrays.toString(route));
 
             // Route known, find next node
             int indexOfNode = -1;
@@ -424,7 +436,7 @@ public class ClhScan {
             } else if (indexOfNode > indexOfDest) {
                 nextStep = route[indexOfNode - 1];
             }
-            Log.i(LOG_TAG, "Next node is "+nextStep);
+            Log.i(LOG_TAG, "Next node is " + nextStep);
             packet.setReceiverId(nextStep);
         }
 
@@ -437,7 +449,7 @@ public class ClhScan {
 
     private void saveRoute(byte[] route) {
         if (route.length == 0) return;
-        Log.i(LOG_TAG, "Saving route"+Arrays.toString(route));
+        Log.i(LOG_TAG, "Saving route" + Arrays.toString(route));
 
         byte routeSource = route[0];
         if (!mRoutes.containsKey(routeSource)) {
@@ -462,7 +474,7 @@ public class ClhScan {
 
         if (route.length < currentRoute.length || !currentRouteHasSink && newRouteHasSink) {
             // Save the route if it is shorter or if it is a resolved route
-            Log.i(LOG_TAG, "Replacing route "+Arrays.toString(currentRoute)+" with "+Arrays.toString(route));
+            Log.i(LOG_TAG, "Replacing route " + Arrays.toString(currentRoute) + " with " + Arrays.toString(route));
             mRoutes.put(routeSource, route);
         }
     }
@@ -481,7 +493,8 @@ public class ClhScan {
                 @Override
                 public void run() {
                     if (mThingyScanning) {
-                        stopScan();
+                        scanner.stopScan(scanCallBack);
+                        clusterHead.startAdvertisingCluster();
                     }
                 }
             }, THINGY_SCAN_DURATION);
@@ -502,17 +515,27 @@ public class ClhScan {
     private no.nordicsemi.android.support.v18.scanner.ScanCallback scanCallBack = new no.nordicsemi.android.support.v18.scanner.ScanCallback() {
         @Override
         public void onScanResult(int callbackType, @NonNull no.nordicsemi.android.support.v18.scanner.ScanResult result) {
-            clusterHead.addToCluster(result.getDevice());
+            clusterHead.addToCluster(result);
         }
 
         @Override
         public void onBatchScanResults(@NonNull List<no.nordicsemi.android.support.v18.scanner.ScanResult> results) {
-            clusterHead.startAdvertisingCluster();
+            super.onBatchScanResults(results);
+            Log.i(LOG_TAG, "Got " + results.size() + " results in batch");
+            for (no.nordicsemi.android.support.v18.scanner.ScanResult result : results) {
+                clusterHead.addToCluster(result);
+            }
+//            clusterHead.startAdvertisingCluster();
         }
 
         @Override
         public void onScanFailed(int errorCode) {
             super.onScanFailed(errorCode);
+        }
+
+        @Override
+        protected void finalize() throws Throwable {
+            super.finalize();
         }
     };
 }
