@@ -417,6 +417,7 @@ public class ClhScan {
 
     private void handleClusteringPacket(ClusteringDataPacket clusteringDataPacket) {
         Log.i(LOG_TAG, clusteringDataPacket.toString());
+        clusterHead.addExternalClusteringDataPacket(clusteringDataPacket);
 
         // TODO implement
     }

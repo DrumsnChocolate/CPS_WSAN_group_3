@@ -19,6 +19,7 @@ public class ClusterHead {
     private static final int MAX_ADVERTISE_LIST_ITEM = ClhConst.MAX_ADVERTISE_LIST_ITEM; //max items in waiting list for advertising
     private static final int MAX_PROCESS_LIST_ITEM = ClhConst.MAX_PROCESS_LIST_ITEM; //max items in waiting list for processing
     private static final String TAG = "Clusterhead";
+    private static final int N_CLUSTERHEAD = 6; // TODO make sure this number is correct
     private boolean mIsSink = false;
     private byte mClhID = 1;
     private final ArrayList<BaseDataPacket> mClhAdvDataList = new ArrayList<BaseDataPacket>(MAX_ADVERTISE_LIST_ITEM);
@@ -30,7 +31,7 @@ public class ClusterHead {
     private final ClhProcessData mClhProcessData = new ClhProcessData(mClhProcDataList, MAX_PROCESS_LIST_ITEM);
 
     private final ArrayList<ClusterLeaf> cluster = new ArrayList<>();
-    private final ArrayList<ClusteringDataPacket> clusters = new ArrayList<>();
+    private final ArrayList<ClusteringDataPacket> externalClusteringDataPackets = new ArrayList<>();
 
     public ClusterHead() {
     }
@@ -147,5 +148,19 @@ public class ClusterHead {
 
         mClhAdvertiser.addAdvPacketToBuffer(clusteringDataPacket, true);
         mClhAdvertiser.stopAdvertiseClhData();
+    }
+
+    public void addExternalClusteringDataPacket(ClusteringDataPacket clusteringDataPacket) {
+        for (int i = 0; i < externalClusteringDataPackets.size(); i++) {
+            ClusteringDataPacket externalClusteringDataPacket = externalClusteringDataPackets.get(i);
+            if (clusteringDataPacket.getSourceID() == externalClusteringDataPacket.getSourceID()) {
+                externalClusteringDataPackets.remove(externalClusteringDataPacket);
+            }
+        }
+        externalClusteringDataPackets.add(clusteringDataPacket);
+        if (externalClusteringDataPackets.size() == N_CLUSTERHEAD) {
+            // TODO: form clusters.
+            Log.i(TAG,"Received clustering info from all clusterheads! forming clusters should be possible!");
+        }
     }
 }
