@@ -19,17 +19,21 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 
+import no.nordicsemi.android.nrfthingy.ClusterHead.packet.ActuateThingyPacket;
 import no.nordicsemi.android.nrfthingy.ClusterHead.packet.BaseDataPacket;
 import no.nordicsemi.android.nrfthingy.ClusterHead.packet.ClusteringDataPacket;
 import no.nordicsemi.android.nrfthingy.ClusterHead.packet.RoutingDataPacket;
 import no.nordicsemi.android.nrfthingy.ClusterHead.packet.SoundDataPacket;
 import no.nordicsemi.android.nrfthingy.ClusterHead.packet.SoundEventDataPacket;
+import no.nordicsemi.android.nrfthingy.SoundFragment;
 import no.nordicsemi.android.support.v18.scanner.BluetoothLeScannerCompat;
 import no.nordicsemi.android.thingylib.ThingySdkManager;
 import no.nordicsemi.android.thingylib.utils.ThingyUtils;
 
 public class ClhScan {
     private static final long THINGY_SCAN_DURATION = 4000;
+    private static final int LED_BURN_TIME = 1000; // Number of ms for Thingy LED to burn
+
     private BluetoothAdapter mAdapter = BluetoothAdapter.getDefaultAdapter();
     private BluetoothLeScanner mCLHscanner;
     private final String LOG_TAG = "CLH Scanner:";
@@ -49,6 +53,7 @@ public class ClhScan {
     private ArrayList<BaseDataPacket> mClhProcDataList;
     private ClhProcessData mClhProcessData;
     private ArrayList<BaseDataPacket> mClhAdvDataList;
+    private SoundFragment mSoundFragment;
 
     // Hashmap of known routes. Key indicates the source of the route
     // We may also need to forward packets from the sink back to a clusterhead,
@@ -194,6 +199,12 @@ public class ClhScan {
 
         BaseDataPacket receivedPacket = manufacturerDataToPacket(manufacturerData);
 
+        // For some reason it sometimes happens that receivedPacket is null, so check for that first
+        if (receivedPacket == null) {
+            Log.i(LOG_TAG, "Received an empty packet");
+            return;
+        }
+
         // Reflected data (we received a packet that we sent out)
         if (mClhID == receivedPacket.getSourceID()) {
             Log.i(LOG_TAG, "Reflected data, mClhID " + mClhID + ", recv:" + receivedPacket.getSourceID());
@@ -230,12 +241,19 @@ public class ClhScan {
                 handleClusteringPacket((ClusteringDataPacket) receivedPacket);
                 // Also forward the packet to other nodes.
                 forwardPacket(receivedPacket);
+            } else if (receivedPacket instanceof ActuateThingyPacket) {
+                // Packet with thingy actuation data
+                handleActuateThingyPacket((ActuateThingyPacket) receivedPacket);
             } else {
                 // Normal packet
 
                 if (mIsSink) {
                     // If this Cluster Head is the Sink node (ID=0), add data to waiting process list
                     mClhProcessData.addProcessPacketToBuffer(receivedPacket);
+
+                    // Process the newly added data in the sink
+                    mClhProcessData.process();
+
                     Log.i(LOG_TAG, "Add data to process list, len:" + mClhProcDataList.size());
                 } else {
                     // Normal Cluster Head (ID 1..127), forward data
@@ -283,7 +301,7 @@ public class ClhScan {
                 @Override
                 public void run() {
                     try {
-                        while (true) {
+                        while (mSoundFragment.getStartButtonState() == true) {
                             Log.i(LOG_TAG, "Sending routing packet!");
                             RoutingDataPacket packet = new RoutingDataPacket();
                             packet.setDestId(BaseDataPacket.SINK_ID);
@@ -312,6 +330,10 @@ public class ClhScan {
     public void setProcDataObject(ClhProcessData clhProObj) {
         mClhProcessData = clhProObj;
         mClhProcDataList = mClhProcessData.getProcessDataList();
+    }
+
+    public void setSoundFragmentObject(SoundFragment soundFragmentObject) {
+        mSoundFragment = soundFragmentObject;
     }
 
     /**
@@ -397,6 +419,30 @@ public class ClhScan {
         Log.i(LOG_TAG, clusteringDataPacket.toString());
 
         // TODO implement
+    }
+
+    private void handleActuateThingyPacket(ActuateThingyPacket actuateThingyPacket) {
+        if (mClhID == actuateThingyPacket.getDestinationID()) {
+            // If this clusterhead is the intended recipient, process the packet
+            byte thingyID = actuateThingyPacket.getThingyId();
+
+            //TODO alter this code to actually set the Thingy LED color
+            // Must first wait for Clusterhead-Thingies connection to be implemented
+            Log.i("SoundFragment", "Received packet to turn on LED for Thingy "+ thingyID);
+
+            // Schedule for LED to turn off after timeout
+            new Handler().postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    // TODO alter this code to actually turn off Thingy LED color
+                    Log.i("SoundFragment", "Timeout reached to turn off LED");
+                }
+            }, LED_BURN_TIME); //the time you want to delay in milliseconds
+
+        } else {
+            // If packet is not meant for this clusterhead, forward it
+            forwardPacket(actuateThingyPacket);
+        }
     }
 
     private void forwardPacket(BaseDataPacket packet) {
@@ -539,5 +585,3 @@ public class ClhScan {
         }
     };
 }
-
-

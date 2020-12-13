@@ -12,6 +12,8 @@ import no.nordicsemi.android.nrfthingy.thingy.Thingy;
 import no.nordicsemi.android.support.v18.scanner.ScanResult;
 import no.nordicsemi.android.thingylib.BaseThingyService;
 import no.nordicsemi.android.thingylib.ThingySdkManager;
+import no.nordicsemi.android.nrfthingy.ClusterHead.packet.SoundDataPacket;
+import no.nordicsemi.android.nrfthingy.SoundFragment;
 
 public class ClusterHead {
     private static final int MAX_ADVERTISE_LIST_ITEM = ClhConst.MAX_ADVERTISE_LIST_ITEM; //max items in waiting list for advertising
@@ -40,6 +42,10 @@ public class ClusterHead {
         setClhID(id, false);
     }
 
+    public ClusterHead(byte id, SoundFragment soundFragmentObject) {
+        this(id);
+        mClhScanner.setSoundFragmentObject(soundFragmentObject);
+    }
 
     public ClhAdvertise getClhAdvertiser() {
         return mClhAdvertiser;
@@ -135,7 +141,7 @@ public class ClusterHead {
     }
 
     public void startAdvertisingCluster() {
-        Log.i(TAG,"Started advertising the cluster: " +cluster.toString());
+        Log.i(TAG, "Started advertising the cluster: " + cluster.toString());
         ClusteringDataPacket clusteringDataPacket = new ClusteringDataPacket();
         clusteringDataPacket.setCluster(cluster);
 

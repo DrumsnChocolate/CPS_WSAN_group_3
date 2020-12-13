@@ -7,6 +7,7 @@ import java.util.Arrays;
 
 import no.nordicsemi.android.nrfthingy.ClusterHead.packet.ActuateThingyPacket;
 import no.nordicsemi.android.nrfthingy.ClusterHead.packet.BaseDataPacket;
+import no.nordicsemi.android.nrfthingy.ClusterHead.packet.SoundDataPacket;
 import no.nordicsemi.android.nrfthingy.ClusterHead.packet.SoundEventDataPacket;
 
 public class ClhProcessData {
@@ -19,7 +20,7 @@ public class ClhProcessData {
 
     private int NextToProcess = 0;
     private int[] FilteredData;
-    private int audioThreshold = 0; // Set threshold for the sound
+    private int audioThreshold = 0; // TODO Set threshold for the sound
     int smoothingSetting = 2;       // Set how smooth the filter should make the data
     private boolean threshold = false;
 
@@ -42,8 +43,9 @@ public class ClhProcessData {
     public ActuateThingyPacket getLoudestThingy() {
         ArrayList<BaseDataPacket> procList = getProcessDataList();
 
-        byte thingyIdToActuate = -1;
-        int greatestAmplitude = 0;
+        SoundEventDataPacket greatestAmplitudePacket = new SoundEventDataPacket();
+        greatestAmplitudePacket.setAmplitude(0);
+        greatestAmplitudePacket.setThingyId((byte) -1);
 
         // Loop through all packets in the buffer
         for(int i = 0; i < procList.size(); i++) {
@@ -51,14 +53,14 @@ public class ClhProcessData {
             if (packet instanceof SoundEventDataPacket) {
                 SoundEventDataPacket soundEventPacket = (SoundEventDataPacket) packet;
 
-                if (soundEventPacket.getAmplitude() > greatestAmplitude) {
-                    greatestAmplitude = soundEventPacket.getAmplitude();
-                    thingyIdToActuate = soundEventPacket.getThingyId();
+                if (soundEventPacket.getAmplitude() > greatestAmplitudePacket.getAmplitude()) {
+                    greatestAmplitudePacket = soundEventPacket;
                 }
 
                 // Remove this packet, since it has fulfilled its purpose
                 procList.remove(i);
 
+                Log.i(LOG_TAG, "Processed a Sound Event packet with packet ID "+ packet.getPacketID());
             } else {
                 Log.i(LOG_TAG, "There's a type "+ packet.getPacketType() +" packet in the buffer that I'm not sure how to process");
             }
@@ -66,9 +68,13 @@ public class ClhProcessData {
         }
 
         ActuateThingyPacket actuateThingyPacket;
-        if (thingyIdToActuate >= 0) {
+        if (greatestAmplitudePacket.getThingyId() >= 0) {
+            // Populate Actuate packet with necessary data
             actuateThingyPacket = new ActuateThingyPacket();
-            actuateThingyPacket.setThingyId(thingyIdToActuate);
+            actuateThingyPacket.setThingyId(greatestAmplitudePacket.getThingyId());
+            actuateThingyPacket.setSourceID((byte) 0);
+            actuateThingyPacket.setDestId(greatestAmplitudePacket.getSourceID());
+
         } else {
             actuateThingyPacket = null;
         }
@@ -77,8 +83,42 @@ public class ClhProcessData {
     }
 
 
+
+    // A method that analyses the data in the first clusterhead
+    public int[] initialProcess(final byte[] data){
+        int[] result = {0, 0};
+        int event = 0, amplitude = 0, duration = 0, counter = 0;
+
+        // Check sound level:
+        for (int i = 0; i < data.length; ++i) {
+            if (data[i] >= audioThreshold) {
+                result[0] = 1;
+            }
+            if (Math.abs(data[i]) > Math.abs(amplitude)) {
+                amplitude = data[i];
+            }
+            if (amplitude > 0) {
+                ++counter;
+            } else {
+                if (counter > duration) {
+                    duration = counter;
+                }
+                counter = 0;
+            }
+        }
+
+        // check all sorts of things with the data to determine if an event happened
+        if (amplitude > 0 && duration > 0) {
+            result[1] = amplitude;
+            result[2] = duration;
+        }
+
+        return result;
+    }
+
+
     // A method that analyses the data in the sink:
-    public void process(byte[] data) {/*
+    public void process() {/*
         ArrayList<BaseDataPacket> processDataList = getProcessDataList();
 
 
