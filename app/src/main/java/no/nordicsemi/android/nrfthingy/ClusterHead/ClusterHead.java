@@ -35,6 +35,7 @@ public class ClusterHead {
     private boolean formedClusters = false;
 
     public ClusterHead() {
+        mClhScanner.setClusterHead(this);
     }
 
     //construtor,
@@ -42,6 +43,7 @@ public class ClusterHead {
     public ClusterHead(byte id) {
         if (id > 127) id -= 127;
         setClhID(id, false);
+        mClhScanner.setClusterHead(this);
     }
 
     public ClusterHead(byte id, SoundFragment soundFragmentObject) {
@@ -64,21 +66,11 @@ public class ClusterHead {
     public int initClhBLE(long advertiseInterval) {
         int error;
 
-        error = initThingyScanner();
-        if (error != ClhErrors.ERROR_CLH_NO) return error;
-
         error = initClhBLEAdvertiser(advertiseInterval);
         if (error != ClhErrors.ERROR_CLH_NO) return error;
 
         error = initClhBLEScanner();
         if (error != ClhErrors.ERROR_CLH_NO) return error;
-        return error;
-    }
-
-    private int initThingyScanner() {
-        int error;
-        mClhScanner.setClusterHead(this);
-        error = mClhScanner.thingy_scan();
         return error;
     }
 

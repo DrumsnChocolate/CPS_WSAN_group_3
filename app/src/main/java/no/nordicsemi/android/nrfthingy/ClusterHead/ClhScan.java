@@ -317,6 +317,9 @@ public class ClhScan {
                 }
             }).start();
         }
+        if (startClicked) {
+            startClusterScan();
+        }
     }
 
 
@@ -527,11 +530,11 @@ public class ClhScan {
         }
     }
 
-    public int thingy_scan() {
+    public int startClusterScan() {
         if (!mThingyScanning) {
             final BluetoothLeScannerCompat scanner = BluetoothLeScannerCompat.getScanner();
             final no.nordicsemi.android.support.v18.scanner.ScanSettings settings =
-                    new no.nordicsemi.android.support.v18.scanner.ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY).setReportDelay(750)
+                    new no.nordicsemi.android.support.v18.scanner.ScanSettings.Builder().setScanMode(no.nordicsemi.android.support.v18.scanner.ScanSettings.SCAN_MODE_LOW_LATENCY).setReportDelay(750)
                             .setUseHardwareBatchingIfSupported(false).setUseHardwareFilteringIfSupported(false).build();
             final List<no.nordicsemi.android.support.v18.scanner.ScanFilter> filters = new ArrayList<>();
             filters.add(new no.nordicsemi.android.support.v18.scanner.ScanFilter.Builder().setServiceUuid(new ParcelUuid(ThingyUtils.THINGY_BASE_UUID)).build());
