@@ -137,6 +137,7 @@ public class ClusterHead {
     public void startAdvertisingCluster() {
         Log.i(TAG, "Started advertising the cluster: " + cluster.toString());
         ClusteringDataPacket clusteringDataPacket = new ClusteringDataPacket();
+        clusteringDataPacket.setSourceID(mClhID);
         clusteringDataPacket.setCluster(cluster);
 
         mClhAdvertiser.addAdvPacketToBuffer(clusteringDataPacket, true);
