@@ -19,7 +19,7 @@ public class ClusterHead {
     private static final int MAX_ADVERTISE_LIST_ITEM = ClhConst.MAX_ADVERTISE_LIST_ITEM; //max items in waiting list for advertising
     private static final int MAX_PROCESS_LIST_ITEM = ClhConst.MAX_PROCESS_LIST_ITEM; //max items in waiting list for processing
     private static final String TAG = "Clusterhead";
-    private static final int N_CLUSTERHEAD = 6; // TODO make sure this number is correct
+    private static final int N_CLUSTERHEAD = 2; // TODO make sure this number is correct
     private boolean mIsSink = false;
     private byte mClhID = 1;
     private final ArrayList<BaseDataPacket> mClhAdvDataList = new ArrayList<BaseDataPacket>(MAX_ADVERTISE_LIST_ITEM);
@@ -32,6 +32,7 @@ public class ClusterHead {
 
     private final ArrayList<ClusterLeaf> cluster = new ArrayList<>();
     private final ArrayList<ClusteringDataPacket> externalClusteringDataPackets = new ArrayList<>();
+    private boolean formedClusters = false;
 
     public ClusterHead() {
     }
@@ -147,10 +148,12 @@ public class ClusterHead {
         clusteringDataPacket.setCluster(cluster);
 
         mClhAdvertiser.addAdvPacketToBuffer(clusteringDataPacket, true);
-        mClhAdvertiser.stopAdvertiseClhData();
+
+//        mClhAdvertiser.stopAdvertiseClhData();
     }
 
     public void addExternalClusteringDataPacket(ClusteringDataPacket clusteringDataPacket) {
+        Log.i(TAG, "Adding external clustering data packet");
         for (int i = 0; i < externalClusteringDataPackets.size(); i++) {
             ClusteringDataPacket externalClusteringDataPacket = externalClusteringDataPackets.get(i);
             if (clusteringDataPacket.getSourceID() == externalClusteringDataPacket.getSourceID()) {
@@ -158,9 +161,12 @@ public class ClusterHead {
             }
         }
         externalClusteringDataPackets.add(clusteringDataPacket);
-        if (externalClusteringDataPackets.size() == N_CLUSTERHEAD) {
+        if (externalClusteringDataPackets.size() == N_CLUSTERHEAD - 1) {
             // TODO: form clusters.
-            Log.i(TAG,"Received clustering info from all clusterheads! forming clusters should be possible!");
+            if (!formedClusters) {
+                formedClusters = true;
+                Log.i(TAG, "Received clustering info from all clusterheads! forming clusters should be possible!");
+            }
         }
     }
 }
