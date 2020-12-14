@@ -1,6 +1,7 @@
 package no.nordicsemi.android.nrfthingy.ClusterHead;
 
 import android.bluetooth.BluetoothDevice;
+import android.nfc.Tag;
 import android.util.Log;
 import android.util.Pair;
 
@@ -33,6 +34,7 @@ public class ClusterHead {
     private final ArrayList<ClusterLeaf> cluster = new ArrayList<>();
     private final ArrayList<ClusteringDataPacket> externalClusteringDataPackets = new ArrayList<>();
     private boolean formedClusters = false;
+    private boolean mClusterAdvertising = false;
 
     public ClusterHead() {
         mClhScanner.setClusterHead(this);
@@ -136,11 +138,25 @@ public class ClusterHead {
 
     public void startAdvertisingCluster() {
         Log.i(TAG, "Started advertising the cluster: " + cluster.toString());
-        ClusteringDataPacket clusteringDataPacket = new ClusteringDataPacket();
-        clusteringDataPacket.setSourceID(mClhID);
-        clusteringDataPacket.setCluster(cluster);
+        mClusterAdvertising = true;
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                while (mClusterAdvertising) {
+                    try {
+                        Log.i(TAG, "Sending clustering packet!");
+                        ClusteringDataPacket clusteringDataPacket = new ClusteringDataPacket();
+                        clusteringDataPacket.setSourceID(mClhID);
+                        clusteringDataPacket.setCluster(cluster);
+                        mClhAdvertiser.addAdvPacketToBuffer(clusteringDataPacket, true);
+                        Thread.sleep(2000);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
 
-        mClhAdvertiser.addAdvPacketToBuffer(clusteringDataPacket, true);
+                }
+            }
+        }).start();
 
 //        mClhAdvertiser.stopAdvertiseClhData();
     }
