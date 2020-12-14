@@ -308,10 +308,6 @@ public class ClhScan {
         // If packet reached end of life it can be discarded
         if (routingPacket.getHopCounts() < ClhConst.MAX_HOP_COUNT) {
             return;
-        } else {
-            // always rebroadcast packet which hopped less times than MAX hop count
-            routingPacket.addToRoute(mClhID);
-            forwardPacket(routingPacket);
         }
 
         if(mIsSink) {
@@ -324,23 +320,26 @@ public class ClhScan {
                 Log.i(LOG_TAG, "packet not meant for sink... Ignoring routing packet");
             }
         } else {
-            if(mBestRouteToSink == null) {
+            if(routingPacket.getReceiverId() == BaseDataPacket.BROADCAST_ID) {
                 routingPacket.addToRoute(mClhID);
-                saveRoute(routingPacket.getRoute());
-//                send packet back to sink so it knows the fastest route
-                routingPacket.setHopCount((byte) 0); // set hop count to zero to prevent from discarding of the packet before it reaches the sink
-                sendRouteBackToSink(routingPacket);
-                Log.i(LOG_TAG, "Route is empty, adding route" + Arrays.toString(mBestRouteToSink));
-            } else if (routingPacket.routeContains(mClhID)) {
-                // check if we are recipient of the packet
-                if (mClhID == routingPacket.getReceiverId()) {
-                    // This cluster head was supposed to receive the packet
-                    Log.i(LOG_TAG, "Cluster on the route.. sending packet to next node on the route: " + Arrays.toString(routingPacket.getRoute()));
+
+                if (mBestRouteToSink == null) {
+                    saveRoute(routingPacket.getRoute());
+                    // send packet back to sink so it knows the fastest route
                     sendRouteBackToSink(routingPacket);
-                } else {
+                    Log.i(LOG_TAG, "Route is empty, adding route" + Arrays.toString(mBestRouteToSink));
+                }
+
+                // always rebroadcast packet which hopped less times than MAX hop count
+                mClhAdvertiser.addAdvPacketToBuffer(routingPacket, false);
+                Log.i(LOG_TAG, "Packet  broadcasted at: " + routingPacket.getData()[routingPacket.getData().length - 1]);
+
+            } else if (mClhID == routingPacket.getReceiverId()) {
+                // This cluster head was supposed to receive the packet
+                if (routingPacket.routeContains(mClhID)) {
+                    // We are in the forwarding route, forward packet to destination
+                    Log.i(LOG_TAG, "Cluster on the route.. sending packet to next node on the route: " + Arrays.toString(routingPacket.getRoute()));
                     forwardPacket(routingPacket);
-                    // This cluster head was not meant to get this packet. We can ignore it.
-                    Log.i(LOG_TAG, "Not on the route.. sending packet further");
                 }
             }
         }
@@ -363,60 +362,54 @@ public class ClhScan {
     }
 
     private void forwardPacket(BaseDataPacket packet) {
+        forwardPacket(packet, false);
+    }
 
-        // this func should:
-        // TODO: broadcast packet to all cluster heads in sight, maybe there is a clh that does not have route yet
+    private void forwardPacket(BaseDataPacket packet, boolean isOriginal) {
+        // [0, 1, 2, 3, source]
+        byte[] route;
+        Log.i(LOG_TAG, "Forwarding packet with destination "+packet.getDestinationID());
+        if (packet.getDestinationID() == BaseDataPacket.SINK_ID) {
+            route = mBestRouteToSink;
+        } else {
+            route = mRoutes.get(packet.getDestinationID());
+        }
 
-        // [source, 1, 2, 3, 0]
-        byte[] route = null;
+        if (route == null) {
+            // No route to the destination known, broadcast to all neighbors
+            Log.i(LOG_TAG, "No route found, flooding network");
+            packet.setReceiverId(BaseDataPacket.BROADCAST_ID);
+        } else {
+            Log.i(LOG_TAG, "Route found: "+Arrays.toString(route));
 
-        packet.setReceiverId(BaseDataPacket.BROADCAST_ID);
-        mClhAdvertiser.addAdvPacketToBuffer(packet, false);
+            // Route known, find next node
+            int indexOfNode = -1;
+            int indexOfDest = -1;
+            for (int i = 0; i < route.length; i++) {
+                if (route[i] == mClhID) {
+                    indexOfNode = i;
+                } else if (route[i] == packet.getDestinationID()) {
+                    indexOfDest = i;
+                }
+            }
 
-        Log.i(LOG_TAG, "Packet  broadcasted at: " + packet.getData()[packet.getData().length - 1]);
+            // The route to the destination is in our route to sink map
+            // Forward the packet to the destination via the next
+            // hop according to our route to the sink
+            byte nextStep = -1;
+            if (indexOfNode < indexOfDest) {
+                nextStep = route[indexOfNode + 1];
+            } else if (indexOfNode > indexOfDest) {
+                nextStep = route[indexOfNode - 1];
+            }
+            Log.i(LOG_TAG, "Next node is "+nextStep);
+            packet.setReceiverId(nextStep);
+        }
 
-//        Log.i(LOG_TAG, "Forwarding packet with destination "+packet.getDestinationID());
-//        if (packet.getDestinationID() == BaseDataPacket.SINK_ID) {
-//            route = mRoutes.get(mClhID);
-//        } else {
-//            route = mRoutes.get(packet.getDestinationID());
-//        }
-//
-//        if (route == null) {
-//            // No route to the destination known, broadcast to all neighbors
-//            Log.i(LOG_TAG, "No route found, flooding network");
-//            packet.setReceiverId(BaseDataPacket.BROADCAST_ID);
-//        } else {
-//            Log.i(LOG_TAG, "Route found: "+Arrays.toString(route));
-//
-//            // Route known, find next node
-//            int indexOfNode = -1;
-//            int indexOfDest = -1;
-//            for (int i = 0; i < route.length; i++) {
-//                if (route[i] == mClhID) {
-//                    indexOfNode = i;
-//                } else if (route[i] == packet.getDestinationID()) {
-//                    indexOfDest = i;
-//                }
-//            }
-//
-//            // The route to the destination is in our route to sink map
-//            // Forward the packet to the destination via the next
-//            // hop according to our route to the sink
-//            byte nextStep = -1;
-//            if (indexOfNode < indexOfDest) {
-//                nextStep = route[indexOfNode + 1];
-//            } else if (indexOfNode > indexOfDest) {
-//                nextStep = route[indexOfNode - 1];
-//            }
-//            Log.i(LOG_TAG, "Next node is "+nextStep);
-//            packet.setReceiverId(nextStep);
-//        }
-//
-//        mClhAdvertiser.addAdvPacketToBuffer(packet, false);
-//        Log.i(LOG_TAG, "Add data to advertised list, len:" + mClhAdvDataList.size());
-//        Log.i(LOG_TAG, "Advertise list at " + (mClhAdvDataList.size() - 1) + ":"
-//                + Arrays.toString(mClhAdvDataList.get(mClhAdvDataList.size() - 1).getData()));
+        mClhAdvertiser.addAdvPacketToBuffer(packet, isOriginal);
+        Log.i(LOG_TAG, "Add data to advertised list, len:" + mClhAdvDataList.size());
+        Log.i(LOG_TAG, "Advertise list at " + (mClhAdvDataList.size() - 1) + ":"
+                + Arrays.toString(mClhAdvDataList.get(mClhAdvDataList.size() - 1).getData()));
     }
 
     /**
@@ -424,24 +417,10 @@ public class ClhScan {
      * @param routingDataPacket
      */
     private void sendRouteBackToSink(RoutingDataPacket routingDataPacket) {
-//        TODO: set receiverID as next on the path and send routingPacket
-        final int nextStep = -1;
-        byte[] routeToSink = routingDataPacket.getRoute();
-        int currentHopCount = routingDataPacket.getHopCounts();
-        int currentRouteNode = routeToSink.length - 1 - currentHopCount;
-
+        routingDataPacket.setHopCount((byte) 0); // set hop count to zero to prevent from discarding of the packet before it reaches the sink
+        routingDataPacket.setSourceID(mClhID);
         routingDataPacket.setDestId(BaseDataPacket.SINK_ID);
-        routingDataPacket.setReceiverId(routeToSink[currentRouteNode + nextStep]);
-        Log.i(LOG_TAG, "Sending route: " + Arrays.toString(routeToSink) + " from source: " + routingDataPacket.getSourceID()
-                + ", Through: " + routingDataPacket.getReceiverId()
-                + ", To destination: " + routingDataPacket.getDestinationID());
-        if(currentHopCount == 0) {
-            // we are in source, we need to assign new Id to packet
-            mClhAdvertiser.addAdvPacketToBuffer(routingDataPacket, true);
-        } else {
-            // we are not in source anymore, forward same packet to next node
-            mClhAdvertiser.addAdvPacketToBuffer(routingDataPacket, false);
-        }
+        forwardPacket(routingDataPacket, true);
     }
 
 
