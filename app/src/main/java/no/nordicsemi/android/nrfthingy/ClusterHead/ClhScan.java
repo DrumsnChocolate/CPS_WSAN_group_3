@@ -337,7 +337,8 @@ public class ClhScan {
             } else if (mClhID == routingPacket.getReceiverId()) {
                 // This cluster head was supposed to receive the packet
                 if (routingPacket.routeContains(mClhID)) {
-                    // We are in the forwarding route, forward packet to destination
+                    // We are in the forwarding route, forward packet to destination, and also save the route
+                    mRoutes.put(routingPacket.getSourceID(), routingPacket.getRoute());
                     Log.i(LOG_TAG, "Cluster on the route.. sending packet to next node on the route: " + Arrays.toString(routingPacket.getRoute()));
                     forwardPacket(routingPacket);
                 }
