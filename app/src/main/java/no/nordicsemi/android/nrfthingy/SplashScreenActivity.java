@@ -51,7 +51,7 @@ import no.nordicsemi.android.thingylib.ThingySdkManager;
 
 public class SplashScreenActivity extends AppCompatActivity implements ThingySdkManager.ServiceConnectionListener {
     private static final String TAG = "SplashScreenActivity";
-    private static final int DURATION = 1000;
+    private static final int DURATION = 0;
     private ThingySdkManager mThingySdkManager;
 
     @Override

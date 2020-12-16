@@ -14,5 +14,9 @@ public class ClhConst {
 
     //for processor
     public static final int MAX_PROCESS_LIST_ITEM=128; //max items in waiting list for processing
+    public static final int MICROPHONE_BUFFER_PROCESS_INTERVAL = 200; // Number of ms between microphone buffer processing
+    public static final int MICROPHONE_PROCESS_THRESHOLD = 30000;
+    public static final double MICROPHONE_PROCESS_DECAY_FACTOR = 0.999; // Decay factor for envelope function
+    public static final int MICROPHONE_PROCESS_MIN_DATAPOINTS_ABOVE_THRESHOLD = 1000;
 
 }

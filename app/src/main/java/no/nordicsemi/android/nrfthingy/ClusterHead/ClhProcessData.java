@@ -5,34 +5,32 @@ import android.util.Log;
 import java.util.ArrayList;
 import java.util.Arrays;
 
-import no.nordicsemi.android.nrfthingy.ClusterHead.packet.ActuateThingyPacket;
 import no.nordicsemi.android.nrfthingy.ClusterHead.packet.BaseDataPacket;
-import no.nordicsemi.android.nrfthingy.ClusterHead.packet.SoundDataPacket;
 import no.nordicsemi.android.nrfthingy.ClusterHead.packet.SoundEventDataPacket;
+import no.nordicsemi.android.nrfthingy.ClusterHead.packet.ActuateThingyPacket;
 
 public class ClhProcessData {
 
     public static final int MAX_PROCESS_LIST_ITEM = ClhConst.MAX_PROCESS_LIST_ITEM;
+    public static final int MICROPHONE_BUFFER_PROCESS_INTERVAL = ClhConst.MICROPHONE_BUFFER_PROCESS_INTERVAL;
+    public static final int MICROPHONE_PROCESS_THRESHOLD = ClhConst.MICROPHONE_PROCESS_THRESHOLD;
+    public static final double MICROPHONE_PROCESS_DECAY_FACTOR = ClhConst.MICROPHONE_PROCESS_DECAY_FACTOR;
+    public static final int MICROPHONE_PROCESS_MIN_DATAPOINTS_ABOVE_THRESHOLD = ClhConst.MICROPHONE_PROCESS_MIN_DATAPOINTS_ABOVE_THRESHOLD;
     private final String LOG_TAG="ClH Processor:";
 
     private int mMaxProcAllowable = MAX_PROCESS_LIST_ITEM;
     private ArrayList<BaseDataPacket> mClhProcessDataList;
-
-    private int NextToProcess = 0;
-    private int[] FilteredData;
-    private int audioThreshold = 0; // TODO Set threshold for the sound
-    int smoothingSetting = 2;       // Set how smooth the filter should make the data
-    private boolean threshold = false;
-
+    private int[] mClhMicrophoneDataBuffer;
 
     public ClhProcessData() {
         mClhProcessDataList = new ArrayList<BaseDataPacket>(MAX_PROCESS_LIST_ITEM);
-
+        clearMicrophoneDataBuffer();
     }
 
     public ClhProcessData(ArrayList<BaseDataPacket> ClhProcessDataList, int maxProcAllowable) {
         mMaxProcAllowable = maxProcAllowable;
         mClhProcessDataList = ClhProcessDataList;
+        clearMicrophoneDataBuffer();
     }
 
     /**
@@ -82,83 +80,86 @@ public class ClhProcessData {
         return actuateThingyPacket;
     }
 
+    public SoundEventDataPacket findSoundEventsInMicrophoneBuffer() {
+        final int[] data = getMicrophoneDataBuffer();
 
+        // Empty buffer, we have our datapoints
+        clearMicrophoneDataBuffer();
 
-    // A method that analyses the data in the first clusterhead
-    public int[] initialProcess(final byte[] data){
-        int[] result = {0, 0};
-        int event = 0, amplitude = 0, duration = 0, counter = 0;
+        // No need to do anything if the buffer is empty
+        if (data.length < 1) {
+            return null;
+        }
 
-        // Check sound level:
-        for (int i = 0; i < data.length; ++i) {
-            if (data[i] >= audioThreshold) {
-                result[0] = 1;
-            }
-            if (Math.abs(data[i]) > Math.abs(amplitude)) {
-                amplitude = data[i];
-            }
-            if (amplitude > 0) {
-                ++counter;
+        Log.i(LOG_TAG, "Processing a valid sound dataset of size "+ data.length);
+
+        // This variable will keep track of the points where the data crosses the threshold
+        ArrayList<Integer> borderPoints = new ArrayList<>();
+
+        // Do the actual processing by looking at the envelope of the waveform
+        // See also https://stackoverflow.com/a/32228352/13871462
+        boolean isDataAboveThreshold = false;
+        int envelope = data[0];
+        for (int i = 1; i < data.length; i++) {
+            if (Math.abs(data[i]) > envelope) {
+                envelope = Math.abs(data[i]);
+                data[i] = envelope;
             } else {
-                if (counter > duration) {
-                    duration = counter;
-                }
-                counter = 0;
+                envelope = (int) ( ((double) envelope) * MICROPHONE_PROCESS_DECAY_FACTOR );
+                data[i] = envelope;
+            }
+
+            // If the data ever crosses the threshold, save those points
+            if (data[i] < MICROPHONE_PROCESS_THRESHOLD && isDataAboveThreshold) {
+                isDataAboveThreshold = false;
+                borderPoints.add(i);
+            } else if (data[i] > MICROPHONE_PROCESS_THRESHOLD && !isDataAboveThreshold) {
+                isDataAboveThreshold = true;
+                borderPoints.add(i);
             }
         }
 
-        // check all sorts of things with the data to determine if an event happened
-        if (amplitude > 0 && duration > 0) {
-            result[1] = amplitude;
-            result[2] = duration;
+        // If there is an odd number of borderPoints, add the last datapoint to the list to close it off nicely
+        if (borderPoints.size() % 2 == 1) {
+            borderPoints.add(data.length);
         }
 
-        return result;
-    }
-
-
-    // A method that analyses the data in the sink:
-    public void process() {/*
-        ArrayList<BaseDataPacket> processDataList = getProcessDataList();
-
-
-        //  - Apply a low pass filter to remove the noise:
-        int value = processDataList.get(0).getSoundPower();
-
-        // Check if the first data point surpasses the audioThreshold
-        if (value >= audioThreshold) {
-            threshold = true;
-        }
-
-        for (int i = 1; i < processDataList.size(); ++i) {
-            int currentValue = processDataList.get(i).getSoundPower();
-
-            // Check if the next data point surpasses the audioThreshold
-            if (currentValue >= audioThreshold) {
-                threshold = true;
+        // Remove bordercrossings that are too small in range
+        for (int i = 0; i < borderPoints.size() - 1; i += 2) {
+            // If the number of datapoints above the border is below the threshold, remove those points
+            if (borderPoints.get(i + 1) - borderPoints.get(i) < MICROPHONE_PROCESS_MIN_DATAPOINTS_ABOVE_THRESHOLD) {
+                borderPoints.remove(i + 1);
+                borderPoints.remove(i);
             }
-
-            value += (currentValue - value) / smoothingSetting;
-            FilteredData[i] = value;
         }
 
-        //  - detecting a change in statistics (mean, variance, etc.)
-        //  - outlier detection and machine learning (need data clustering for this, see: http://java-ml.sourceforge.net/)
-        //  - pattern recognition (in time and/or frequency spectrum)
-        //      * cross-correlation?
-        //      * Fourier Transform?
+        if (borderPoints.size() < 1) {
+            return null;
+        }
 
-        // Based on the data processing above, check if an event has happened:
-        if (threshold) { // Add all other specifications with && and ||
-            //      - send correct data to be visualized
-            //      - notify the right thingy to light the LED
+        // Generate a single SoundEvent packet with highest amplitude of the remaining valid points
+        int highestAmplitude = 0;
+        int highestDuration = 0;
+        double timePerDatapoint = ((double) MICROPHONE_BUFFER_PROCESS_INTERVAL) / ((double) data.length);
+        int i;
+        for (i = 0; i < borderPoints.size() / 2; i++) {
+            int average = 0;
+            int[] range = Arrays.copyOfRange(data, borderPoints.get(2 * i), borderPoints.get(2 * i + 1));
+            for (int element : range) {
+                average += element;
+            }
+            average /= range.length;
+
+            if (average > highestAmplitude) {
+                highestAmplitude = average;
+                highestDuration = (int) ((borderPoints.get(2 * i + 1) - borderPoints.get(2 * i) * timePerDatapoint));
+            }
         }
-        else {
-            //      - remove useless data and reset everything
-            threshold = false;
-        }
-        ++NextToProcess;
-        */
+
+        SoundEventDataPacket packet = new SoundEventDataPacket();
+        packet.setAmplitude(highestAmplitude);
+        packet.setDuration(highestDuration);
+        return packet;
     }
 
     public ArrayList<BaseDataPacket> getProcessDataList() {
@@ -169,9 +170,26 @@ public class ClhProcessData {
         mClhProcessDataList.clear();
     }
 
+    public int[] getMicrophoneDataBuffer() {
+        return mClhMicrophoneDataBuffer;
+    }
+
+    public void clearMicrophoneDataBuffer() {
+        mClhMicrophoneDataBuffer = new int[0];
+    }
+
     public void addProcessPacketToBuffer(BaseDataPacket data) {
         if (mClhProcessDataList.size() < mMaxProcAllowable) {
             mClhProcessDataList.add(data);
         }
+    }
+
+    public void addMicrophoneDataToBuffer(int[] data) {
+        // Create new buffer by copying old buffer and new data into one array
+        int bufferLength = mClhMicrophoneDataBuffer.length;
+        int[] newBuffer = new int[data.length + bufferLength];
+        System.arraycopy(mClhMicrophoneDataBuffer, 0, newBuffer, 0, bufferLength);
+        System.arraycopy(data, 0, newBuffer, bufferLength, data.length);
+        mClhMicrophoneDataBuffer = newBuffer;
     }
 }
