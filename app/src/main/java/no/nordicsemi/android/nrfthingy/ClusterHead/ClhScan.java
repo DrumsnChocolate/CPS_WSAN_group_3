@@ -8,8 +8,11 @@ import android.bluetooth.le.ScanFilter;
 import android.bluetooth.le.ScanResult;
 import android.bluetooth.le.ScanSettings;
 import android.os.Handler;
+import android.os.ParcelUuid;
 import android.util.Log;
 import android.util.SparseArray;
+
+import androidx.annotation.NonNull;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -18,34 +21,43 @@ import java.util.List;
 
 import no.nordicsemi.android.nrfthingy.ClusterHead.packet.ActuateThingyPacket;
 import no.nordicsemi.android.nrfthingy.ClusterHead.packet.BaseDataPacket;
+import no.nordicsemi.android.nrfthingy.ClusterHead.packet.ClusteringDataPacket;
 import no.nordicsemi.android.nrfthingy.ClusterHead.packet.RoutingDataPacket;
 import no.nordicsemi.android.nrfthingy.ClusterHead.packet.SoundDataPacket;
 import no.nordicsemi.android.nrfthingy.ClusterHead.packet.SoundEventDataPacket;
 import no.nordicsemi.android.nrfthingy.SoundFragment;
+import no.nordicsemi.android.support.v18.scanner.BluetoothLeScannerCompat;
+import no.nordicsemi.android.thingylib.ThingySdkManager;
+import no.nordicsemi.android.thingylib.utils.ThingyUtils;
 
 public class ClhScan {
+    private static final long THINGY_SCAN_DURATION = 4000;
     private static final int LED_BURN_TIME = 1000; // Number of ms for Thingy LED to burn
 
     private BluetoothAdapter mAdapter = BluetoothAdapter.getDefaultAdapter();
-    private BluetoothLeScanner mCLHscanner ;
-    private final String LOG_TAG="CLH Scanner:";
+    private BluetoothLeScanner mCLHscanner;
+    private final String LOG_TAG = "CLH Scanner:";
 
     private Handler handler = new Handler();
     private Handler handler2 = new Handler();
     private boolean mScanning;
-    private byte mClhID=1;
-    private boolean mIsSink=false;
+    private byte mClhID = 1;
+    private boolean mIsSink = false;
     private ScanSettings mScanSettings;
 
-    private SparseArray<Integer> ClhScanHistoryArray=new SparseArray();
+    private SparseArray<Integer> ClhScanHistoryArray = new SparseArray();
 
     //private static final int MAX_PROCESS_LIST_ITEM=128;
     //private ClhAdvertisedData clhAdvData=new ClhAdvertisedData();
     private ClhAdvertise mClhAdvertiser;
-    private ArrayList<BaseDataPacket> mClhProcDataList ;
+    private ArrayList<BaseDataPacket> mClhProcDataList;
     private ClhProcessData mClhProcessData;
     private ArrayList<BaseDataPacket> mClhAdvDataList;
     private SoundFragment mSoundFragment;
+
+
+    // The best route to the sink, every clusterhead has it except of sink
+    byte[] mBestRouteToSink = null;
 
     // Hashmap of known routes. Key indicates the source of the route
     // We may also need to forward packets from the sink back to a clusterhead,
@@ -53,23 +65,31 @@ public class ClhScan {
     private HashMap<Byte, byte[]> mRoutes = new HashMap<>();
     private static final int MAX_ADVERTISE_LIST_ITEM = 128;
 
-    public ClhScan()
-    {
+
+    //Clustering fields
+    private ClusterHead clusterHead;
+    private ThingySdkManager mThingySdkManager;
+    private Handler mHandler = new Handler();
+    private boolean mThingyScanning;
+
+
+    public ClhScan() {
+        mThingySdkManager = ThingySdkManager.getInstance();
+        // Send routing packet to find sink every 2 seconds
     }
 
-    public ClhScan(ClhAdvertise clhAdvObj,ClhProcessData clhProcDataObj)
-    {//constructor, set 2 alias to Clh advertiser and processor
-        mClhAdvertiser=clhAdvObj;
-        mClhAdvDataList=mClhAdvertiser.getAdvertiseList();
-        mClhProcessData=clhProcDataObj;
-        mClhProcDataList=clhProcDataObj.getProcessDataList();
+    public ClhScan(ClhAdvertise clhAdvObj, ClhProcessData clhProcDataObj) {//constructor, set 2 alias to Clh advertiser and processor
+        mClhAdvertiser = clhAdvObj;
+        mClhAdvDataList = mClhAdvertiser.getAdvertiseList();
+        mClhProcessData = clhProcDataObj;
+        mClhProcDataList = clhProcDataObj.getProcessDataList();
     }
 
     @SuppressLint("NewApi")
     public int BLE_scan() {
-        boolean result=true;
-        byte[] advsettings=new byte[16];
-        byte[] advData= new byte[256];
+        boolean result = true;
+        byte[] advsettings = new byte[16];
+        byte[] advData = new byte[256];
         int length;
         final List<ScanFilter> filters = new ArrayList<>();
 
@@ -94,14 +114,14 @@ public class ClhScan {
                     .setDeviceName(ClhConst.clusterHeadName)
                     .build();
             filters.add(filter);
-            Log.i(LOG_TAG, "filters"+ filters.toString());
+            Log.i(LOG_TAG, "filters" + filters.toString());
 
-            mScanSettings =ClhScanSettings;
+            mScanSettings = ClhScanSettings;
 // Stops scanning after 60 seconds.
 
             // Create a timer to stop scanning after a pre-defined scan period.
             //rest, then restart to avoid auto disable from Android
-           handler.postDelayed(new Runnable() {
+            handler.postDelayed(new Runnable() {
                 @Override
                 public void run() {
                     mScanning = false;
@@ -114,24 +134,21 @@ public class ClhScan {
                             mScanning = true;
                             mCLHscanner.startScan(filters, mScanSettings, CLHScanCallback);
                         }
-                    },ClhConst.REST_PERIOD);
+                    }, ClhConst.REST_PERIOD);
                 }
             }, ClhConst.SCAN_PERIOD);
 
             mScanning = true;
             mCLHscanner.startScan(filters, ClhScanSettings, CLHScanCallback);
             Log.i(LOG_TAG, "Start scan");
-        }
-        else
-        {
+        } else {
             return ClhErrors.ERROR_CLH_SCAN_ALREADY_START;
         }
 
         return ClhErrors.ERROR_CLH_NO;
     }
 
-    public void stopScanCLH()
-    {
+    public void stopScanCLH() {
         mScanning = false;
         mCLHscanner.stopScan(CLHScanCallback);
         Log.i(LOG_TAG, "Stop scan");
@@ -144,8 +161,8 @@ public class ClhScan {
             super.onScanResult(callbackType, result);
 
             // Check RSSI to remove weak signal ones
-            if (result.getRssi()<ClhConst.MIN_SCAN_RSSI_THRESHOLD) {
-                Log.i(LOG_TAG,"Dropping packet, low RSSI");
+            if (result.getRssi() < ClhConst.MIN_SCAN_RSSI_THRESHOLD) {
+                Log.i(LOG_TAG, "Dropping packet, low RSSI");
                 return;
             }
 
@@ -161,7 +178,7 @@ public class ClhScan {
 
         @Override
         public void onScanFailed(int errorCode) {
-            Log.e( "BLE", "Discovery onScanFailed: " + errorCode );
+            Log.e("BLE", "Discovery onScanFailed: " + errorCode);
             super.onScanFailed(errorCode);
         }
     };
@@ -170,9 +187,10 @@ public class ClhScan {
      * Process received data of BLE Manufacturer field
      * This includes:
      * - Manufacturer Specification (in manufacturerData.key): "unique packet ID", include
-     *             2 bytes: 0XAABB: AA: Source Cluster Head ID: 0-127
-     *                              BB: Packet ID: 0-254 (unique for each packet)
+     * 2 bytes: 0XAABB: AA: Source Cluster Head ID: 0-127
+     * BB: Packet ID: 0-254 (unique for each packet)
      * - Manufacturer Data (in manufacturerData.value): remained n data bytes (manufacturerData.size())
+     *
      * @param manufacturerData data received via bluetooth
      */
     public void processScanData(SparseArray<byte[]> manufacturerData) {
@@ -210,6 +228,7 @@ public class ClhScan {
          */
 
         int sourceAndPacketId = manufacturerData.keyAt(0);
+
         if (ClhScanHistoryArray.indexOfKey(sourceAndPacketId) < 0) {//not yet received
             // History not yet full, update new "unique packet ID" to history list, reset life counter
             if (ClhScanHistoryArray.size() < ClhConst.SCAN_HISTORY_LIST_SIZE) {
@@ -223,6 +242,10 @@ public class ClhScan {
             } else if (receivedPacket instanceof SoundEventDataPacket) {
                 // Packet with sound event data
                 handleSoundEventPacket((SoundEventDataPacket) receivedPacket);
+            } else if (receivedPacket instanceof ClusteringDataPacket) {
+                handleClusteringPacket((ClusteringDataPacket) receivedPacket);
+                // Also forward the packet to other nodes.
+                forwardPacket(receivedPacket);
             } else if (receivedPacket instanceof ActuateThingyPacket) {
                 // Packet with thingy actuation data
                 handleActuateThingyPacket((ActuateThingyPacket) receivedPacket);
@@ -243,6 +266,9 @@ public class ClhScan {
         }
     }
 
+
+
+
     public BaseDataPacket manufacturerDataToPacket(SparseArray<byte[]> manufacturerData) {
         byte packetType = BaseDataPacket.getPacketTypeFromBT(manufacturerData);
         BaseDataPacket packet;
@@ -256,19 +282,22 @@ public class ClhScan {
             case SoundEventDataPacket.PACKET_TYPE:
                 packet = new SoundEventDataPacket();
                 break;
+            case ClusteringDataPacket.PACKET_TYPE:
+                packet = new ClusteringDataPacket();
+                break;
             default:
-                Log.i(LOG_TAG, "Received packet with unknown packet type "+packetType);
+                Log.i(LOG_TAG, "Received packet with unknown packet type " + packetType);
                 return null;
         }
         packet.setDataFromBT(manufacturerData);
         return packet;
     }
 
-    public void setClhID(byte clhID, boolean isSink, boolean startClicked){
-        mClhID=clhID;
-        mIsSink=isSink;
+    public void setClhID(byte clhID, boolean isSink, boolean startClicked) {
+        mClhID = clhID;
+        mIsSink = isSink;
 
-        if (mClhID != BaseDataPacket.SINK_ID && startClicked) {
+        if (mClhID == BaseDataPacket.SINK_ID && startClicked) {
             // Send routing packet to find sink every 2 seconds
             new Thread(new Runnable() {
                 @Override
@@ -280,7 +309,6 @@ public class ClhScan {
                             packet.setDestId(BaseDataPacket.SINK_ID);
                             packet.setSourceID(mClhID);
                             packet.setRoute(new byte[]{mClhID});
-                            packet.setRouteToId(BaseDataPacket.SINK_ID);
                             mClhAdvertiser.addAdvPacketToBuffer(packet, true);
                             Thread.sleep(2000);
                         }
@@ -290,18 +318,22 @@ public class ClhScan {
                 }
             }).start();
         }
+        if (startClicked) {
+            startClusterScan();
+        }
     }
 
+
     //set alias to Clh advertiser
-    public void setAdvDataObject(ClhAdvertise clhAdvObj){
-        mClhAdvertiser=clhAdvObj;
-        mClhAdvDataList=mClhAdvertiser.getAdvertiseList();
+    public void setAdvDataObject(ClhAdvertise clhAdvObj) {
+        mClhAdvertiser = clhAdvObj;
+        mClhAdvDataList = mClhAdvertiser.getAdvertiseList();
     }
 
     //set alias to Clh processor
-    public void setProcDataObject(ClhProcessData clhProObj){
-        mClhProcessData=clhProObj;
-        mClhProcDataList=mClhProcessData.getProcessDataList();
+    public void setProcDataObject(ClhProcessData clhProObj) {
+        mClhProcessData = clhProObj;
+        mClhProcDataList = mClhProcessData.getProcessDataList();
     }
 
     public void setSoundFragmentObject(SoundFragment soundFragmentObject) {
@@ -315,59 +347,52 @@ public class ClhScan {
      */
     private void handleRoutingPacket(RoutingDataPacket routingPacket) {
         Log.i(LOG_TAG, "Handling routing packet");
-        Log.i(LOG_TAG, "Data: "+Arrays.toString(routingPacket.getData()));
-        Log.i(LOG_TAG, "Route: "+Arrays.toString(routingPacket.getRoute()));
+        Log.i(LOG_TAG, "Data: " + Arrays.toString(routingPacket.getData()));
+        Log.i(LOG_TAG, "Route: " + Arrays.toString(routingPacket.getRoute()));
 
-        if (routingPacket.routeResolved()) {
-            Log.i(LOG_TAG, "Route is resolved");
-            // The route to the destination has been found, sending result back
-            if (routingPacket.getDestinationID() == mClhID) {
-                Log.i(LOG_TAG, "We requested the route");
-                // A route that we requested was found
-                // Save the route
-                saveRoute(routingPacket.getRoute());
-            } else {
-                // Forward the routing packet to the device that requested the route
-                if (routingPacket.routeContains(mClhID)) {
-                    Log.i(LOG_TAG, "Forwarding routing packet");
-                    // We are in the route, forward the packet back to the source
-                    // We should probably also save this route in case a future 'normal' packet
-                    // has to be forwarded
-                    // If shorter route arrives later we should exchange packet
-                    saveRoute(routingPacket.getRoute());
-                    mClhAdvertiser.addAdvPacketToBuffer(routingPacket, false);
-                } else {
-                    // We are not the best route to the source. Ignore the packet
-                    Log.i(LOG_TAG, "Not forwarding routing packet");
-                    return;
-                }
-            }
-        } else if (routingPacket.routeContains(mClhID)) {
-            // We are already in the route list so this packet has already been through
-            // this node. We can ignore it.
-            Log.i(LOG_TAG, "Ignoring routing packet");
+        // If packet reached end of life it can be discarded
+        if (routingPacket.getHopCounts() < ClhConst.MAX_HOP_COUNT) {
             return;
+        }
+
+        if(mIsSink) {
+            if (routingPacket.getReceiverId() == routingPacket.getDestinationID() && mClhID == routingPacket.getDestinationID()) {
+                // current cluster head is sink and sink was the destination of the packet...
+                byte[] routeToClh = routingPacket.getRoute();
+                // we can save the route in the map
+                mRoutes.put(routingPacket.getSourceID(), routeToClh);
+            } else {
+                Log.i(LOG_TAG, "packet not meant for sink... Ignoring routing packet");
+            }
         } else {
             Log.i(LOG_TAG, "Forwarding incomplete routing packet");
             // Destination not found yet, add our address to the route and forward it4
-            Log.i(LOG_TAG, "Adding "+mClhID+" to "+Arrays.toString(routingPacket.getRoute()));
+            Log.i(LOG_TAG, "Adding " + mClhID + " to " + Arrays.toString(routingPacket.getRoute()));
             routingPacket.addToRoute(mClhID);
-            Log.i(LOG_TAG, "New route: "+Arrays.toString(routingPacket.getRoute()));
+            Log.i(LOG_TAG, "New route: " + Arrays.toString(routingPacket.getRoute()));
 
-            // Save the route so we have a route to the source node
-            saveRoute(routingPacket.getRoute());
-
-            if (routingPacket.routeResolved()) {
-                Log.i(LOG_TAG, "Route is now resolved");
-                // The route is now resolved, send it back to the source
-                routingPacket.setDestId(routingPacket.getSourceID());
-                routingPacket.setSourceID(mClhID);
+            if (mBestRouteToSink == null) {
+                saveRoute(routingPacket.getRoute());
+                // send packet back to sink so it knows the fastest route
+                sendRouteBackToSink(routingPacket);
+                Log.i(LOG_TAG, "Route is empty, adding route" + Arrays.toString(mBestRouteToSink));
             }
 
-            Log.i(LOG_TAG, "Sending routing packet");
-            // Forward, with new address so a second packet with a different route won't be ignored
-            mClhAdvertiser.addAdvPacketToBuffer(routingPacket, true);
+            // always rebroadcast packet which hopped less times than MAX hop count
+            mClhAdvertiser.addAdvPacketToBuffer(routingPacket, false);
+            Log.i(LOG_TAG, "Packet  broadcasted at: " + routingPacket.getData()[routingPacket.getData().length - 1]);
+
+           if (mClhID == routingPacket.getReceiverId()) {
+                // This cluster head was supposed to receive the packet
+                if (routingPacket.routeContains(mClhID)) {
+                    // We are in the forwarding route, forward packet to destination, and also save the route
+                    mRoutes.put(routingPacket.getSourceID(), routingPacket.getRoute());
+                    Log.i(LOG_TAG, "Cluster on the route.. sending packet to next node on the route: " + Arrays.toString(routingPacket.getRoute()));
+                    forwardPacket(routingPacket);
+                }
+           }
         }
+
     }
 
     /**
@@ -385,6 +410,14 @@ public class ClhScan {
         } else {
             forwardPacket(soundEventPacket);
         }
+    }
+
+    private void handleClusteringPacket(ClusteringDataPacket clusteringDataPacket) {
+        Log.i(LOG_TAG, "Handling clustering data packet");
+        Log.i(LOG_TAG, clusteringDataPacket.toString());
+        clusterHead.addExternalClusteringDataPacket(clusteringDataPacket);
+
+        // TODO implement
     }
 
     private void handleActuateThingyPacket(ActuateThingyPacket actuateThingyPacket) {
@@ -412,11 +445,15 @@ public class ClhScan {
     }
 
     private void forwardPacket(BaseDataPacket packet) {
-        // [source, 1, 2, 3, 0]
-        byte[] route = null;
+        forwardPacket(packet, false);
+    }
+
+    private void forwardPacket(BaseDataPacket packet, boolean isOriginal) {
+        // [0, 1, 2, 3, source]
+        byte[] route;
         Log.i(LOG_TAG, "Forwarding packet with destination "+packet.getDestinationID());
         if (packet.getDestinationID() == BaseDataPacket.SINK_ID) {
-            route = mRoutes.get(mClhID);
+            route = mBestRouteToSink;
         } else {
             route = mRoutes.get(packet.getDestinationID());
         }
@@ -426,7 +463,7 @@ public class ClhScan {
             Log.i(LOG_TAG, "No route found, flooding network");
             packet.setReceiverId(BaseDataPacket.BROADCAST_ID);
         } else {
-            Log.i(LOG_TAG, "Route found: "+Arrays.toString(route));
+            Log.i(LOG_TAG, "Route found: " + Arrays.toString(route));
 
             // Route known, find next node
             int indexOfNode = -1;
@@ -448,47 +485,90 @@ public class ClhScan {
             } else if (indexOfNode > indexOfDest) {
                 nextStep = route[indexOfNode - 1];
             }
-            Log.i(LOG_TAG, "Next node is "+nextStep);
+            Log.i(LOG_TAG, "Next node is " + nextStep);
             packet.setReceiverId(nextStep);
         }
 
-        mClhAdvertiser.addAdvPacketToBuffer(packet, false);
+        mClhAdvertiser.addAdvPacketToBuffer(packet, isOriginal);
         Log.i(LOG_TAG, "Add data to advertised list, len:" + mClhAdvDataList.size());
         Log.i(LOG_TAG, "Advertise list at " + (mClhAdvDataList.size() - 1) + ":"
                 + Arrays.toString(mClhAdvDataList.get(mClhAdvDataList.size() - 1).getData()));
     }
 
-
+    /**
+     * Sends found route back to sink along that route.
+     * @param routingDataPacket
+     */
+    private void sendRouteBackToSink(RoutingDataPacket routingDataPacket) {
+        routingDataPacket.setHopCount((byte) 0); // set hop count to zero to prevent from discarding of the packet before it reaches the sink
+        routingDataPacket.setSourceID(mClhID);
+        routingDataPacket.setDestId(BaseDataPacket.SINK_ID);
+        forwardPacket(routingDataPacket, true);
+    }
 
     private void saveRoute(byte[] route) {
         if (route.length == 0) return;
         Log.i(LOG_TAG, "Saving route"+Arrays.toString(route));
-
-        byte routeSource = route[0];
-        if(!mRoutes.containsKey(routeSource)) {
-            // We do not have a route from this source yet, save it
-            mRoutes.put(routeSource, route);
-            Log.i(LOG_TAG, "Saving route for first time");
-            return;
-        }
-
-        // Since we are also saving unresolved routes (routes that don't have the sink node inside)
-        // we should also save the route if the new route is resolved, even though that route
-        // may be longer in list length than the current route
-        byte[] currentRoute = mRoutes.get(routeSource);
-        boolean currentRouteHasSink = false;
-        for (byte item : currentRoute) {
-            if (item == BaseDataPacket.SINK_ID) currentRouteHasSink = true;
-        }
-        boolean newRouteHasSink = false;
-        for (byte item : route) {
-            if (item == BaseDataPacket.SINK_ID) newRouteHasSink = true;
-        }
-
-        if(route.length < currentRoute.length || !currentRouteHasSink && newRouteHasSink) {
-            // Save the route if it is shorter or if it is a resolved route
-            Log.i(LOG_TAG, "Replacing route "+Arrays.toString(currentRoute)+" with "+Arrays.toString(route));
-            mRoutes.put(routeSource, route);
-        }
+        mBestRouteToSink = route.clone();
     }
+
+    public int startClusterScan() {
+        if (!mThingyScanning) {
+            final BluetoothLeScannerCompat scanner = BluetoothLeScannerCompat.getScanner();
+            final no.nordicsemi.android.support.v18.scanner.ScanSettings settings =
+                    new no.nordicsemi.android.support.v18.scanner.ScanSettings.Builder().setScanMode(no.nordicsemi.android.support.v18.scanner.ScanSettings.SCAN_MODE_LOW_LATENCY).setReportDelay(750)
+                            .setUseHardwareBatchingIfSupported(false).setUseHardwareFilteringIfSupported(false).build();
+            final List<no.nordicsemi.android.support.v18.scanner.ScanFilter> filters = new ArrayList<>();
+            filters.add(new no.nordicsemi.android.support.v18.scanner.ScanFilter.Builder().setServiceUuid(new ParcelUuid(ThingyUtils.THINGY_BASE_UUID)).build());
+            scanner.startScan(filters, settings, scanCallBack);
+            mThingyScanning = true;
+            mHandler.postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    if (mThingyScanning) {
+                        scanner.stopScan(scanCallBack);
+                        clusterHead.startAdvertisingCluster();
+                    }
+                }
+            }, THINGY_SCAN_DURATION);
+        } else {
+            return ClhErrors.ERROR_CLH_THINGY_SCAN_ALREADY_START;
+        }
+        return ClhErrors.ERROR_CLH_NO;
+    }
+
+    private void stopScan() {
+    }
+
+    public void setClusterHead(ClusterHead clusterHead) {
+        this.clusterHead = clusterHead;
+    }
+
+
+    private no.nordicsemi.android.support.v18.scanner.ScanCallback scanCallBack = new no.nordicsemi.android.support.v18.scanner.ScanCallback() {
+        @Override
+        public void onScanResult(int callbackType, @NonNull no.nordicsemi.android.support.v18.scanner.ScanResult result) {
+            clusterHead.addToCluster(result);
+        }
+
+        @Override
+        public void onBatchScanResults(@NonNull List<no.nordicsemi.android.support.v18.scanner.ScanResult> results) {
+            super.onBatchScanResults(results);
+            Log.i(LOG_TAG, "Got " + results.size() + " results in batch");
+            for (no.nordicsemi.android.support.v18.scanner.ScanResult result : results) {
+                clusterHead.addToCluster(result);
+            }
+//            clusterHead.startAdvertisingCluster();
+        }
+
+        @Override
+        public void onScanFailed(int errorCode) {
+            super.onScanFailed(errorCode);
+        }
+
+        @Override
+        protected void finalize() throws Throwable {
+            super.finalize();
+        }
+    };
 }
