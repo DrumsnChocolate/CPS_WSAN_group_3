@@ -306,7 +306,7 @@ public class ClhScan {
         Log.i(LOG_TAG, "Route: "+Arrays.toString(routingPacket.getRoute()));
 
         // If packet reached end of life it can be discarded
-        if (routingPacket.getHopCounts() < ClhConst.MAX_HOP_COUNT) {
+        if (routingPacket.getHopCounts() > ClhConst.MAX_HOP_COUNT) {
             return;
         }
 
