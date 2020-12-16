@@ -423,18 +423,11 @@ public class ClhScan {
             // If this clusterhead is the intended recipient, process the packet
             byte thingyID = actuateThingyPacket.getThingyId();
 
-            //TODO alter this code to actually set the Thingy LED color
-            // Must first wait for Clusterhead-Thingies connection to be implemented
             Log.i("SoundFragment", "Received packet to turn on LED for Thingy "+ thingyID);
 
-            // Schedule for LED to turn off after timeout
-            new Handler().postDelayed(new Runnable() {
-                @Override
-                public void run() {
-                    // TODO alter this code to actually turn off Thingy LED color
-                    Log.i("SoundFragment", "Timeout reached to turn off LED");
-                }
-            }, LED_BURN_TIME); //the time you want to delay in milliseconds
+            //TODO alter this code to actually set the Thingy LED color via the cluster database
+            // Must first wait for Clusterhead-Thingies connection to be implemented
+
 
         } else {
             // If packet is not meant for this clusterhead, forward it
