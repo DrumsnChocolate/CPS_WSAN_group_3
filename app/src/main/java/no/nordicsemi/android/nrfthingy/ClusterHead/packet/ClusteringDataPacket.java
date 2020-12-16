@@ -12,7 +12,7 @@ public class ClusteringDataPacket extends BaseDataPacket {
     public static final int CLUSTER_POS = LAST_BASE_PACKET_BYTE_POS + 1;
 
     public static final int ELEMENT_ADDRESS_RELATIVE_POS = 0;
-    public static final int ELEMENT_ADDRESS_SIZE = 42 / Byte.SIZE; // 42 bit address for bluetooth. // "00:11:22:AA:BB:CC".getBytes().length; //  Bluetooth addresses look like this: "00:11:22:AA:BB:CC" and chars need 2 bytes.
+    public static final int ELEMENT_ADDRESS_SIZE = 48 / Byte.SIZE; // 42 bit address for bluetooth. // "00:11:22:AA:BB:CC".getBytes().length; //  Bluetooth addresses look like this: "00:11:22:AA:BB:CC" and chars need 2 bytes.
     public static final int ELEMENT_RSSI_RELATIVE_POS = ELEMENT_ADDRESS_RELATIVE_POS + ELEMENT_ADDRESS_SIZE;
     public static final int ELEMENT_RSSI_SIZE = 4;
     public static final int ELEMENT_CONNECTED_RELATIVE_POS = ELEMENT_RSSI_RELATIVE_POS + ELEMENT_RSSI_SIZE;
