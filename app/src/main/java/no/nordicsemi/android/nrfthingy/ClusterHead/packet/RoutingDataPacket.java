@@ -61,14 +61,6 @@ public class RoutingDataPacket extends BaseDataPacket {
     }
 
     /**
-     * Check if the route has been resolved
-     * @return
-     */
-    public boolean routeResolved() {
-        return routeContains(getRouteToId());
-    }
-
-    /**
      * Set the route that this packet has taken
      * @param route list of addresses the packet has travelled through
      */

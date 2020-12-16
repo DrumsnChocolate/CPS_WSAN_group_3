@@ -18,6 +18,7 @@ public class ClusterHead {
 
     private final ArrayList<BaseDataPacket> mClhProcDataList =new ArrayList<>(MAX_PROCESS_LIST_ITEM);
     private final ClhProcessData mClhProcessData=new ClhProcessData(mClhProcDataList,MAX_PROCESS_LIST_ITEM);
+
     public ClusterHead(){}
 
     //construtor,
