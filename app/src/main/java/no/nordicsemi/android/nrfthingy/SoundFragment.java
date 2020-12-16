@@ -241,18 +241,20 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
                     // Transform byte data into int data
                     int[] data = new int[dataBytes.length / 2];
                     for (int i = 0; i < data.length; i++) {
-                        data[i] = (dataBytes[2*i] << 8) + ((int) (dataBytes[2*i+1]) & 0x00FF);
+                        // The shift by 32768 is added so we don't have to work with signed ints
+                        // Be aware that the order in which each duo of bytes is stored is the reverse of an actual int.
+                        //  e.g. the second byte stores the higher part, and the first byte the lower part
+                        data[i] = ((dataBytes[2*i+1] << 8) + ((dataBytes[2*i]) & 0x00FF) + 32768);
                     }
 
-/*
                     mHandler.post(new Runnable() {
                         @Override
                         public void run() {
-                            mVoiceVisualizer.draw(data);
+                            mVoiceVisualizer.draw(dataBytes);
 
                         }
                     });
-*/
+
                     //PSG edit No.1
                     //audio receive event
                     if( mStartPlayingAudio = true) {
@@ -825,6 +827,21 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
             // Send packet
             mClhAdvertiser.addAdvPacketToBuffer(soundPacket, true);
 
+
+            //TODO Test code to see if we can get the Thingy to turn on
+            //==================
+            // This part of code exists for testing single direct thingy connection
+//            if (mDevice != null) {
+//                Log.i(LOG_TAG, "Tried to turn on Thingy LED");
+//                final BluetoothDevice device = mDevice;
+//                if (mThingySdkManager.isConnected(device)) {
+//                    int ledIntensity = 50; // Percent, bright enough for blue LED
+//                    int ledColor = ThingyUtils.LED_BLUE; // Because it's pretty
+//                    mThingySdkManager.setOneShotLedMode(device, ledColor, ledIntensity);
+//                }
+//            }
+            // End test code
+            //==================
         }
     }
 
