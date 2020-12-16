@@ -371,18 +371,18 @@ public class ClhScan {
             routingPacket.addToRoute(mClhID);
             Log.i(LOG_TAG, "New route: " + Arrays.toString(routingPacket.getRoute()));
 
-            if (mBestRouteToSink == null) {
-                saveRoute(routingPacket.getRoute());
-                // send packet back to sink so it knows the fastest route
-                sendRouteBackToSink(routingPacket);
-                Log.i(LOG_TAG, "Route is empty, adding route" + Arrays.toString(mBestRouteToSink));
-            }
+                if (mBestRouteToSink == null) {
+                    saveRoute(routingPacket.getRoute());
+                    // send packet back to sink so it knows the fastest route
+                    sendRouteBackToSink(routingPacket);
+                    Log.i(LOG_TAG, "Route is empty, adding route" + Arrays.toString(mBestRouteToSink));
+                }
 
-            // always rebroadcast packet which hopped less times than MAX hop count
-            mClhAdvertiser.addAdvPacketToBuffer(routingPacket, false);
-            Log.i(LOG_TAG, "Packet  broadcasted at: " + routingPacket.getData()[routingPacket.getData().length - 1]);
+                // always rebroadcast packet which hopped less times than MAX hop count
+                mClhAdvertiser.addAdvPacketToBuffer(routingPacket, false);
+                Log.i(LOG_TAG, "Packet  broadcasted at: " + routingPacket.getData()[routingPacket.getData().length - 1]);
 
-           if (mClhID == routingPacket.getReceiverId()) {
+            } else if (mClhID == routingPacket.getReceiverId()) {
                 // This cluster head was supposed to receive the packet
                 if (routingPacket.routeContains(mClhID)) {
                     // We are in the forwarding route, forward packet to destination, and also save the route
@@ -390,7 +390,7 @@ public class ClhScan {
                     Log.i(LOG_TAG, "Cluster on the route.. sending packet to next node on the route: " + Arrays.toString(routingPacket.getRoute()));
                     forwardPacket(routingPacket);
                 }
-           }
+            }
         }
 
     }
