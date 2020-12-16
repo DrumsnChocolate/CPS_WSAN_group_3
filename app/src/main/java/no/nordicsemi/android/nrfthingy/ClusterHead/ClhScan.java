@@ -255,7 +255,6 @@ public class ClhScan {
                 if (mIsSink) {
                     // If this Cluster Head is the Sink node (ID=0), add data to waiting process list
                     mClhProcessData.addProcessPacketToBuffer(receivedPacket);
-
                     Log.i(LOG_TAG, "Add data to process list, len:" + mClhProcDataList.size());
                 } else {
                     // Normal Cluster Head (ID 1..127), forward data
@@ -350,8 +349,10 @@ public class ClhScan {
         Log.i(LOG_TAG, "Data: " + Arrays.toString(routingPacket.getData()));
         Log.i(LOG_TAG, "Route: " + Arrays.toString(routingPacket.getRoute()));
 
+
+
         // If packet reached end of life it can be discarded
-        if (routingPacket.getHopCounts() < ClhConst.MAX_HOP_COUNT) {
+        if (routingPacket.getHopCounts() > ClhConst.MAX_HOP_COUNT) {
             return;
         }
 
