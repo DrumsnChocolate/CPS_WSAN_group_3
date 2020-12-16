@@ -365,11 +365,8 @@ public class ClhScan {
                 Log.i(LOG_TAG, "packet not meant for sink... Ignoring routing packet");
             }
         } else {
-            Log.i(LOG_TAG, "Forwarding incomplete routing packet");
-            // Destination not found yet, add our address to the route and forward it4
-            Log.i(LOG_TAG, "Adding " + mClhID + " to " + Arrays.toString(routingPacket.getRoute()));
-            routingPacket.addToRoute(mClhID);
-            Log.i(LOG_TAG, "New route: " + Arrays.toString(routingPacket.getRoute()));
+            if(routingPacket.getReceiverId() == BaseDataPacket.BROADCAST_ID) {
+                routingPacket.addToRoute(mClhID);
 
                 if (mBestRouteToSink == null) {
                     saveRoute(routingPacket.getRoute());
