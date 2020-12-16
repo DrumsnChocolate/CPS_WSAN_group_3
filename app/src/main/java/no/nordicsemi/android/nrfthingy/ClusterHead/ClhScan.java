@@ -210,25 +210,23 @@ public class ClhScan {
                 ClhScanHistoryArray.append(sourceAndPacketId, 0);
             }
 
-            BaseDataPacket receivedPacket = manufacturerDataToPacket(manufacturerData);
-
             Log.i(LOG_TAG, "Handling packet");
-            if (receivedPacket instanceof RoutingDataPacket) {
+            if (packet instanceof RoutingDataPacket) {
                 // Routing packet
-                handleRoutingPacket((RoutingDataPacket) receivedPacket);
-            } else if (receivedPacket instanceof SoundEventDataPacket) {
+                handleRoutingPacket((RoutingDataPacket) packet);
+            } else if (packet instanceof SoundEventDataPacket) {
                 // Packet with sound event data
-                handleSoundEventPacket((SoundEventDataPacket) receivedPacket);
+                handleSoundEventPacket((SoundEventDataPacket) packet);
             } else {
                 // Normal packet
 
                 if (mIsSink) {
                     // If this Cluster Head is the Sink node (ID=0), add data to waiting process list
-                    mClhProcessData.addProcessPacketToBuffer(receivedPacket);
+                    mClhProcessData.addProcessPacketToBuffer(packet);
                     Log.i(LOG_TAG, "Add data to process list, len:" + mClhProcDataList.size());
                 } else {
                     // Normal Cluster Head (ID 1..127), forward data
-                    forwardPacket(receivedPacket);
+                    forwardPacket(packet);
                     Log.i(LOG_TAG, "Forwarding packet");
                 }
             }
@@ -304,6 +302,8 @@ public class ClhScan {
         Log.i(LOG_TAG, "Handling routing packet");
         Log.i(LOG_TAG, "Data: "+Arrays.toString(routingPacket.getData()));
         Log.i(LOG_TAG, "Route: "+Arrays.toString(routingPacket.getRoute()));
+
+
 
         // If packet reached end of life it can be discarded
         if (routingPacket.getHopCounts() > ClhConst.MAX_HOP_COUNT) {
