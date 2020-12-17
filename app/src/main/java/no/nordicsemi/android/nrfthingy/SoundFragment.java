@@ -924,13 +924,13 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
         list.add("not a scream");
         list.add("scream");
 
-        eventsList.removeAllViews();
-        for (String item : list) {
-            TextView listItem = new TextView(this.getContext());
-            listItem.setText(item);
-            listItem.setPadding(0, 15, 0, 15);
-            eventsList.addView(listItem);
-        }
+//        eventsList.removeAllViews();
+//        for (String item : list) {
+//            TextView listItem = new TextView(this.getContext());
+//            listItem.setText(item);
+//            listItem.setPadding(0, 15, 0, 15);
+//            eventsList.addView(listItem);
+//        }
     }
 
     @Override
