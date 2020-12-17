@@ -7,7 +7,7 @@ public class ClhConst {
     public static final int ADVERTISING_INTERVAL=200; //default 200 ms interval for each advertising packet
     //----------
     //for scanner
-    public static final int MIN_SCAN_RSSI_THRESHOLD=-80;    //min RSSI of receive packet from other clusterheads
+    public static final int MIN_SCAN_RSSI_THRESHOLD=-120;    //min RSSI of receive packet from other clusterheads
     public static final long SCAN_PERIOD = 60000*5;   //scan 10 minutes
     public static final long REST_PERIOD=1000; //rest in 1 sec
     public static final int SCAN_HISTORY_LIST_SIZE=512; //max item in history list
