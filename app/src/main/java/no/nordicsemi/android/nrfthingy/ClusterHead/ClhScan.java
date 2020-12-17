@@ -55,6 +55,7 @@ public class ClhScan {
     private ArrayList<BaseDataPacket> mClhAdvDataList;
     private SoundFragment mSoundFragment;
 
+    private OnRouteFoundListener onRouteFoundListener;
 
     // The best route to the sink, every clusterhead has it except of sink
     byte[] mBestRouteToSink = null;
@@ -362,6 +363,7 @@ public class ClhScan {
                 byte[] routeToClh = routingPacket.getRoute();
                 // we can save the route in the map
                 mRoutes.put(routingPacket.getSourceID(), routeToClh);
+                Log.i(LOG_TAG, "Route found to "+routingPacket.getSourceID()+": "+Arrays.toString(routeToClh));
             } else {
                 Log.i(LOG_TAG, "packet not meant for sink... Ignoring routing packet");
             }
@@ -501,6 +503,9 @@ public class ClhScan {
         if (route.length == 0) return;
         Log.i(LOG_TAG, "Saving route"+Arrays.toString(route));
         mBestRouteToSink = route.clone();
+        if (onRouteFoundListener != null) {
+            onRouteFoundListener.onRouteToSinkFound(route);
+        }
     }
 
     public int startClusterScan() {
@@ -562,4 +567,12 @@ public class ClhScan {
             super.finalize();
         }
     };
+
+    public void setOnRouteFoundListener(OnRouteFoundListener listener) {
+        this.onRouteFoundListener = listener;
+    }
+
+    public interface OnRouteFoundListener {
+        public void onRouteToSinkFound(byte[] route);
+    }
 }

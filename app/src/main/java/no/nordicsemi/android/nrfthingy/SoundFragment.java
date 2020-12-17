@@ -309,6 +309,7 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
     //var declare and init
 
     private Button mAdvertiseButton;
+    private TextView mFoundRouteTextView;
     private EditText mClhIDInput;
     private TextView mClhLog;
     private final String LOG_TAG="CLH Sound fragment: ";
@@ -457,6 +458,7 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
 
         //PSG edit No.3----------------------------
         mAdvertiseButton = rootView.findViewById(R.id.startClh_btn);
+        mFoundRouteTextView = rootView.findViewById(R.id.foundRouteTextView);
         mClhIDInput= rootView.findViewById(R.id.clhIDInput_text);
         mClhLog= rootView.findViewById(R.id.logClh_text);
 
@@ -465,6 +467,12 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
         mClh.initClhBLE(ClhConst.ADVERTISING_INTERVAL);
         mClhAdvertiser=mClh.getClhAdvertiser();
         mClhScanner=mClh.getClhScanner();
+        mClhScanner.setOnRouteFoundListener(new ClhScan.OnRouteFoundListener() {
+            @Override
+            public void onRouteToSinkFound(byte[] route) {
+                mFoundRouteTextView.setText(Arrays.toString(route));
+            }
+        });
         mClhProcessor=mClh.getClhProcessor();
 
         //"Start" button Click Handler
