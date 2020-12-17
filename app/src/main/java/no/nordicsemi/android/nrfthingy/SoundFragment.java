@@ -77,6 +77,10 @@ import com.getkeepsafe.taptargetview.TapTarget;
 import com.getkeepsafe.taptargetview.TapTargetSequence;
 
 import java.util.Arrays;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Observable;
+import java.util.Observer;
 
 import no.nordicsemi.android.nrfthingy.ClusterHead.ClhAdvertise;
 import no.nordicsemi.android.nrfthingy.ClusterHead.packet.ActuateThingyPacket;
@@ -93,13 +97,16 @@ import no.nordicsemi.android.nrfthingy.sound.FrequencyModeFragment;
 import no.nordicsemi.android.nrfthingy.sound.PcmModeFragment;
 import no.nordicsemi.android.nrfthingy.sound.SampleModeFragment;
 import no.nordicsemi.android.nrfthingy.sound.ThingyMicrophoneService;
+import no.nordicsemi.android.nrfthingy.thingy.Thingy;
+import no.nordicsemi.android.nrfthingy.thingy.ThingyService;
 import no.nordicsemi.android.nrfthingy.widgets.VoiceVisualizer;
+import no.nordicsemi.android.support.v18.scanner.ScanResult;
 import no.nordicsemi.android.thingylib.ThingyListener;
 import no.nordicsemi.android.thingylib.ThingyListenerHelper;
 import no.nordicsemi.android.thingylib.ThingySdkManager;
 import no.nordicsemi.android.thingylib.utils.ThingyUtils;
 
-public class SoundFragment extends Fragment implements PermissionRationaleDialogFragment.PermissionDialogListener {
+public class SoundFragment extends Fragment implements PermissionRationaleDialogFragment.PermissionDialogListener, Observer {
 
 
     private static final String AUDIO_PLAYING_STATE = "AUDIO_PLAYING_STATE";
@@ -127,10 +134,12 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
 
         @Override
         public void onDeviceConnected(BluetoothDevice device, int connectionState) {
+            Log.i(LOG_TAG, "Connected to device " + device.getAddress());
         }
 
         @Override
         public void onDeviceDisconnected(BluetoothDevice device, int connectionState) {
+            Log.i(LOG_TAG, "Couldn't connect to device " + device.getAddress());
             if (device.equals(mDevice)) {
                 stopRecording();
                 stopMicrophoneOverlayAnimation();
@@ -141,6 +150,8 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
 
         @Override
         public void onServiceDiscoveryCompleted(BluetoothDevice device) {
+            mThingySdkManager.enableThingyMicrophone(device, true);
+            Log.i(LOG_TAG, "Enabled mic on thingy");
         }
 
         @Override
@@ -260,6 +271,7 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
                         mClhProcessor.addMicrophoneDataToBuffer(data);
                     }
                     //End PSG edit No.1
+                    Log.i(LOG_TAG, "Microphone event received!");
 
                 }
             }
@@ -460,6 +472,7 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
 
         //initial Clusterhead: advertiser, scanner, processor
         mClh=new ClusterHead(mClhID, this);
+        mClh.addObserver(this);
         mClh.initClhBLE(ClhConst.ADVERTISING_INTERVAL);
         mClhAdvertiser=mClh.getClhAdvertiser();
         mClhScanner=mClh.getClhScanner();
@@ -832,4 +845,34 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
         return startButtonState;
     }
 
+    @Override
+    public void update(Observable o, Object arg) {
+        if (o instanceof ClusterHead) {
+            if (o == mClh) {
+                connectCluster();
+//                Log.i(LOG_TAG, "Number of thingies found: " + mClh.getClosestThingies().size());
+                Log.i(LOG_TAG, "connecting to cluster!");
+            }
+        }
+    }
+
+    private void connectCluster() {
+        Comparator<ScanResult> cp = new Comparator<ScanResult>() {
+            @Override
+            public int compare(ScanResult o1, ScanResult o2) {
+                int rssi1 = o1.getRssi();
+                int rssi2 = o2.getRssi();
+                return Integer.compare(rssi1, rssi2);
+            }
+        };
+        List<ScanResult> closest = mClh.getClosestThingies();
+        for (int i = 0; i < closest.size(); i++) {
+            connect(closest.get(i).getDevice());
+        }
+    }
+
+    private void connect(final BluetoothDevice device) {
+        mThingySdkManager.connectToThingy(getContext(), device, ThingyService.class);
+        final Thingy thingy = new Thingy(device);
+    }
 }
