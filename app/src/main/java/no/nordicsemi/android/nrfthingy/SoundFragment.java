@@ -846,7 +846,8 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
     private void processSinkBuffer() {
         ActuateThingyPacket thingyPacket = mClhProcessor.getLoudestThingy();
             // update data to write in the graph
-        liveSoundEventPacket.setValue(mClhProcessor.getGreatestAmplitudePacket());
+
+        liveSoundEventPacket.postValue(mClhProcessor.getGreatestAmplitudePacket());
         if (thingyPacket != null) {
             // Send packet if it exists
             mClhAdvertiser.addAdvPacketToBuffer(thingyPacket, true);
