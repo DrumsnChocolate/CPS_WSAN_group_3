@@ -54,6 +54,7 @@ public class ClhScan {
     private ArrayList<BaseDataPacket> mClhAdvDataList;
     private SoundFragment mSoundFragment;
 
+    private OnRouteFoundListener onRouteFoundListener;
 
     // The best route to the sink, every clusterhead has it except of sink
     byte[] mBestRouteToSink = null;
@@ -234,7 +235,7 @@ public class ClhScan {
                 ClhScanHistoryArray.append(sourceAndPacketId, 0);
             }
 
-            Log.i(LOG_TAG, "Handling packet");
+            Log.i(LOG_TAG, "Handling packet with ID "+ receivedPacket.getPacketID());
             if (receivedPacket instanceof RoutingDataPacket) {
                 // Routing packet
                 handleRoutingPacket((RoutingDataPacket) receivedPacket);
@@ -275,6 +276,12 @@ public class ClhScan {
                 break;
             case SoundEventDataPacket.PACKET_TYPE:
                 packet = new SoundEventDataPacket();
+                break;
+            case ClusteringDataPacket.PACKET_TYPE:
+                packet = new ClusteringDataPacket();
+                break;
+            case ActuateThingyPacket.PACKET_TYPE:
+                packet = new ActuateThingyPacket();
                 break;
             default:
                 Log.i(LOG_TAG, "Received packet with unknown packet type " + packetType);
@@ -354,6 +361,7 @@ public class ClhScan {
                 byte[] routeToClh = routingPacket.getRoute();
                 // we can save the route in the map
                 mRoutes.put(routingPacket.getSourceID(), routeToClh);
+                Log.i(LOG_TAG, "Route found to "+routingPacket.getSourceID()+": "+Arrays.toString(routeToClh));
             } else {
                 Log.i(LOG_TAG, "packet not meant for sink... Ignoring routing packet");
             }
@@ -391,11 +399,12 @@ public class ClhScan {
      * @param soundEventPacket The packet
      */
     private void handleSoundEventPacket(SoundEventDataPacket soundEventPacket) {
+        Log.i(LOG_TAG, "                                                                Received a Sound Event with amplitude " + soundEventPacket.getAmplitude() + " and duration " + soundEventPacket.getDuration());
         if (mIsSink) {
             // If this Cluster Head is the Sink node (ID=0), add the data to the buffer
             // There it is compared to other incoming data
             mClhProcessData.addProcessPacketToBuffer(soundEventPacket);
-            Log.i(LOG_TAG, "Received a Sound Event with amplitude " + soundEventPacket.getAmplitude() + " and duration " + soundEventPacket.getDuration());
+
             Log.i(LOG_TAG, "Add event to process list, new lenght:" + mClhProcDataList.size());
         } else {
             forwardPacket(soundEventPacket);
@@ -411,22 +420,17 @@ public class ClhScan {
 //    }
 
     private void handleActuateThingyPacket(ActuateThingyPacket actuateThingyPacket) {
+
+        Log.i(LOG_TAG, "                                                                Handling actuation packet for clusterhead "+ actuateThingyPacket.getDestinationID());
         if (mClhID == actuateThingyPacket.getDestinationID()) {
             // If this clusterhead is the intended recipient, process the packet
             byte thingyID = actuateThingyPacket.getThingyId();
 
-            //TODO alter this code to actually set the Thingy LED color
-            // Must first wait for Clusterhead-Thingies connection to be implemented
-            Log.i("SoundFragment", "Received packet to turn on LED for Thingy "+ thingyID);
+            Log.i("SoundFragment", "                                            Received packet to turn on LED for Thingy "+ thingyID);
 
-            // Schedule for LED to turn off after timeout
-            new Handler().postDelayed(new Runnable() {
-                @Override
-                public void run() {
-                    // TODO alter this code to actually turn off Thingy LED color
-                    Log.i("SoundFragment", "Timeout reached to turn off LED");
-                }
-            }, LED_BURN_TIME); //the time you want to delay in milliseconds
+            //TODO alter this code to actually set the Thingy LED color via the cluster database
+            // Must first wait for Clusterhead-Thingies connection to be implemented
+            mSoundFragment.turnOnLED();
 
         } else {
             // If packet is not meant for this clusterhead, forward it
@@ -500,6 +504,9 @@ public class ClhScan {
         if (route.length == 0) return;
         Log.i(LOG_TAG, "Saving route"+Arrays.toString(route));
         mBestRouteToSink = route.clone();
+        if (onRouteFoundListener != null) {
+            onRouteFoundListener.onRouteToSinkFound(route);
+        }
     }
 
     public int startClusterScan() {
@@ -562,4 +569,12 @@ public class ClhScan {
             super.finalize();
         }
     };
+
+    public void setOnRouteFoundListener(OnRouteFoundListener listener) {
+        this.onRouteFoundListener = listener;
+    }
+
+    public interface OnRouteFoundListener {
+        public void onRouteToSinkFound(byte[] route);
+    }
 }

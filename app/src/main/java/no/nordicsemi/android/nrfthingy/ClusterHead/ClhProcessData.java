@@ -45,6 +45,8 @@ public class ClhProcessData {
         greatestAmplitudePacket.setAmplitude(0);
         greatestAmplitudePacket.setThingyId((byte) -1);
 
+        Log.i(LOG_TAG, "Processing event buffer with size "+ procList.size());
+
         // Loop through all packets in the buffer
         for(int i = 0; i < procList.size(); i++) {
             BaseDataPacket packet = procList.get(i);

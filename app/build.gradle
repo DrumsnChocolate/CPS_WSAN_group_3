@@ -28,6 +28,7 @@ android {
 
     repositories {
         maven { url "https://jitpack.io" }
+
     }
 }
 
@@ -50,5 +51,6 @@ dependencies {
     implementation 'com.github.PhilJay:MPAndroidChart:v2.2.5'
     // 3D engine
     implementation 'org.rajawali3d:rajawali:1.0.325@aar'
-
+    //charts
+    
 }

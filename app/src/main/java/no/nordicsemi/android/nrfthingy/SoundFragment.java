@@ -115,7 +115,7 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
     private static final float ALPHA_MAX = 0.60f;
     private static final float ALPHA_MIN = 0.0f;
     private static final int DURATION = 800;
-    private static final int SINK_PROCESS_INTERVAL = 1000; // Number of ms between packet processing
+    private static final int SINK_PROCESS_INTERVAL = ClhConst.SINK_PROCESS_INTERVAL;
     public static final int MICROPHONE_BUFFER_PROCESS_INTERVAL = ClhConst.MICROPHONE_BUFFER_PROCESS_INTERVAL;
 
     private ImageView mMicrophone;
@@ -253,18 +253,20 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
                     // Transform byte data into int data
                     int[] data = new int[dataBytes.length / 2];
                     for (int i = 0; i < data.length; i++) {
-                        data[i] = (dataBytes[2*i] << 8) + ((int) (dataBytes[2*i+1]) & 0x00FF);
+                        // The shift by 32768 is added so we don't have to work with signed ints
+                        // Be aware that the order in which each duo of bytes is stored is the reverse of an actual int.
+                        //  e.g. the second byte stores the higher part, and the first byte the lower part
+                        data[i] = ((dataBytes[2*i+1] << 8) + ((dataBytes[2*i]) & 0x00FF) + 32768);
                     }
 
-/*
                     mHandler.post(new Runnable() {
                         @Override
                         public void run() {
-                            mVoiceVisualizer.draw(data);
+                            mVoiceVisualizer.draw(dataBytes);
 
                         }
                     });
-*/
+
                     //PSG edit No.1
                     //audio receive event
                     if( mStartPlayingAudio = true) {
@@ -320,6 +322,7 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
     //var declare and init
 
     private Button mAdvertiseButton;
+    private TextView mFoundRouteTextView;
     private EditText mClhIDInput;
     private TextView mClhLog;
     private final String LOG_TAG="CLH Sound fragment: ";
@@ -429,6 +432,7 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
         });
 
 
+
          mThingy.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -468,6 +472,7 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
 
         //PSG edit No.3----------------------------
         mAdvertiseButton = rootView.findViewById(R.id.startClh_btn);
+        mFoundRouteTextView = rootView.findViewById(R.id.foundRouteTextView);
         mClhIDInput= rootView.findViewById(R.id.clhIDInput_text);
         mClhLog= rootView.findViewById(R.id.logClh_text);
 
@@ -477,6 +482,12 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
         mClh.initClhBLE(ClhConst.ADVERTISING_INTERVAL);
         mClhAdvertiser=mClh.getClhAdvertiser();
         mClhScanner=mClh.getClhScanner();
+        mClhScanner.setOnRouteFoundListener(new ClhScan.OnRouteFoundListener() {
+            @Override
+            public void onRouteToSinkFound(byte[] route) {
+                mFoundRouteTextView.setText(Arrays.toString(route));
+            }
+        });
         mClhProcessor=mClh.getClhProcessor();
 
         //"Start" button Click Handler
@@ -519,16 +530,17 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
                         public void run() {
                             // First check if we're actually active
                             while (getStartButtonState()) {
-                                if (mIsSink) {
-                                    // The sink must process packet buffer
-                                    processSinkBuffer();
-                                } else {
-                                    // Clusterheads must process microphone buffer
-                                    processMicrophoneBuffer();
-                                }
-
                                 try {
-                                    Thread.sleep(MICROPHONE_BUFFER_PROCESS_INTERVAL);
+                                    if (mIsSink) {
+                                        // The sink must process packet buffer
+                                        processSinkBuffer();
+                                        Thread.sleep(SINK_PROCESS_INTERVAL);
+                                    } else {
+                                        // Clusterheads must process microphone buffer
+                                        processMicrophoneBuffer();
+                                        Thread.sleep(MICROPHONE_BUFFER_PROCESS_INTERVAL);
+                                    }
+
                                 } catch (InterruptedException e) {
                                     e.printStackTrace();
                                 }
@@ -821,6 +833,7 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
     private void processSinkBuffer() {
         ActuateThingyPacket thingyPacket = mClhProcessor.getLoudestThingy();
         if (thingyPacket != null) {
+            Log.i(LOG_TAG, "                                    Sending an actuation packet to clusterhead "+ thingyPacket.getDestinationID());
             // Send packet if it exists
             mClhAdvertiser.addAdvPacketToBuffer(thingyPacket, true);
         }
@@ -830,7 +843,6 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
         SoundEventDataPacket soundPacket = mClhProcessor.findSoundEventsInMicrophoneBuffer();
 
         if (soundPacket != null) {
-            Log.i(LOG_TAG, "Created soundEvent packet");
             // Populate package further
             soundPacket.setThingyId((byte) 1); //TODO Retrieve actual thingy ID
             soundPacket.setSourceID(mClhID);
@@ -839,6 +851,24 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
             // Send packet
             mClhAdvertiser.addAdvPacketToBuffer(soundPacket, true);
 
+
+            //TODO Test code to see if we can get the Thingy to turn on
+            //==================
+//            turnOnLED();
+            // End test code
+            //==================
+        }
+    }
+
+    public void turnOnLED() {
+        if (mDevice != null) {
+            final BluetoothDevice device = mDevice;
+            if (mThingySdkManager.isConnected(device)) {
+                int ledIntensity = 50; // Percent, bright enough for blue LED
+                int ledColor = ThingyUtils.LED_GREEN; // Because it's pretty
+                mThingySdkManager.setOneShotLedMode(device, ledColor, ledIntensity);
+            }
+            Log.i(LOG_TAG, "Tried to turn on Thingy LED");
         }
     }
 

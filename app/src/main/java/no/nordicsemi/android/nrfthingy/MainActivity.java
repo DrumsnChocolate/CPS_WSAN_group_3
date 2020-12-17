@@ -133,12 +133,13 @@ import static no.nordicsemi.android.nrfthingy.common.Utils.GROUP_ID_ABOUT;
 import static no.nordicsemi.android.nrfthingy.common.Utils.GROUP_ID_ADD_THINGY;
 import static no.nordicsemi.android.nrfthingy.common.Utils.GROUP_ID_DFU;
 import static no.nordicsemi.android.nrfthingy.common.Utils.GROUP_ID_SAVED_THINGIES;
-import static no.nordicsemi.android.nrfthingy.common.Utils.GROUP_ID_WSAN;
+import static no.nordicsemi.android.nrfthingy.common.Utils.GROUP_ID_VISUALISATION;
 import static no.nordicsemi.android.nrfthingy.common.Utils.INITIAL_CONFIG_FROM_ACTIVITY;
 import static no.nordicsemi.android.nrfthingy.common.Utils.ITEM_ID_ADD_THINGY;
 import static no.nordicsemi.android.nrfthingy.common.Utils.ITEM_ID_DFU;
 import static no.nordicsemi.android.nrfthingy.common.Utils.ITEM_ID_SETTINGS;
-import static no.nordicsemi.android.nrfthingy.common.Utils.ITEM_ID_WSAN;
+import static no.nordicsemi.android.nrfthingy.common.Utils.ITEM_ID_LIST;
+import static no.nordicsemi.android.nrfthingy.common.Utils.ITEM_ID_GRAPH;
 import static no.nordicsemi.android.nrfthingy.common.Utils.MOTION_FRAGMENT;
 import static no.nordicsemi.android.nrfthingy.common.Utils.NFC_DIALOG_TAG;
 import static no.nordicsemi.android.nrfthingy.common.Utils.NOTIFICATION_ID;
@@ -711,13 +712,16 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                 Intent aboutActivity = new Intent(MainActivity.this, AboutActivity.class);
                 startActivity(aboutActivity);
                 break;
-            case GROUP_ID_WSAN:
-                Intent wsanControlPanel = new Intent(MainActivity.this, visualisationpic.class);
-                startActivity(wsanControlPanel);
+            case GROUP_ID_VISUALISATION:
+                if (item.getItemId() == ITEM_ID_LIST) {
+                    Intent wsanControlPanel1 = new Intent(MainActivity.this, visualisationlist.class);
+                    startActivity(wsanControlPanel1);}
+                if (item.getItemId() == ITEM_ID_GRAPH) {
+                    Intent wsanControlPanel2 = new Intent(MainActivity.this, visualisationpic.class);
+                    startActivity(wsanControlPanel2);}
                 break;
             default:
 
-                break;
         }
 
         new Handler().postDelayed(new Runnable() {
@@ -1090,7 +1094,9 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
 
         // Add a button to go to the control page for WSAN
         total += total;
-        mNavigationView.getMenu().add(GROUP_ID_WSAN, ITEM_ID_WSAN, total, getString(R.string.action_wsan)).setIcon(R.drawable.ic_mic_grey);
+        mNavigationView.getMenu().add(GROUP_ID_VISUALISATION, ITEM_ID_LIST, total, getString(R.string.list)).setIcon(R.drawable.ic_mic_grey);
+        total += total;
+        mNavigationView.getMenu().add(GROUP_ID_VISUALISATION, ITEM_ID_GRAPH, total, getString(R.string.graph)).setIcon(R.drawable.ic_mic_grey);
     }
 
     private void checkFragmentDrawerItem() {
