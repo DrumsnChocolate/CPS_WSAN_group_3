@@ -210,7 +210,7 @@ public class ClhAdvertise {
                 data.setHopCount(hopcounts);
             }
             mClhAdvDataList.add(data);
-            Log.i(LOG_TAG,"add Adv packet, size:"+mClhAdvDataList.size());
+            Log.i(LOG_TAG,"add Adv packet ID "+ data.getPacketID() +", size:"+mClhAdvDataList.size());
         }
     }
 

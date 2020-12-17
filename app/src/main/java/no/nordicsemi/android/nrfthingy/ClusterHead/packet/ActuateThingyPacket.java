@@ -3,7 +3,7 @@ package no.nordicsemi.android.nrfthingy.ClusterHead.packet;
 import java.util.Arrays;
 
 public class ActuateThingyPacket extends BaseDataPacket {
-    public static final byte PACKET_TYPE = 3;
+    public static final byte PACKET_TYPE = 4;
 
     private static final int THINGY_ID_POS = LAST_BASE_PACKET_BYTE_POS + 1;
 
