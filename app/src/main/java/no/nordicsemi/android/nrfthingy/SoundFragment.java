@@ -135,6 +135,8 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
 
         @Override
         public void onDeviceConnected(BluetoothDevice device, int connectionState) {
+            mClh.addConnectedDevice(device);
+            mClh.removeConnectingDevice(device);
             Log.i(LOG_TAG, "Connected to device " + device.getAddress());
         }
 
@@ -146,6 +148,12 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
                 stopMicrophoneOverlayAnimation();
                 stopThingyOverlayAnimation();
                 mStartPlayingAudio = false;
+            }
+            mClh.removeConnectedDevice(device);
+            mClh.removeConnectingDevice(device);
+            mClh.removeFromVisible(device);
+            if (!mClh.clusterIsFull()) {
+                connectNextBest();
             }
         }
 
@@ -858,22 +866,20 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
     }
 
     private void connectCluster() {
-        Comparator<ScanResult> cp = new Comparator<ScanResult>() {
-            @Override
-            public int compare(ScanResult o1, ScanResult o2) {
-                int rssi1 = o1.getRssi();
-                int rssi2 = o2.getRssi();
-                return Integer.compare(rssi1, rssi2);
-            }
-        };
-        List<ScanResult> closest = mClh.getClosestThingies();
+        List<BluetoothDevice> closest = mClh.getClosestUnconnectedThingies();
         for (int i = 0; i < closest.size(); i++) {
-            connect(closest.get(i).getDevice());
+            connect(closest.get(i));
         }
     }
 
     private void connect(final BluetoothDevice device) {
         mThingySdkManager.connectToThingy(getContext(), device, ThingyService.class);
-        final Thingy thingy = new Thingy(device);
+        mClh.addConnectingDevice(device);
+        mClh.removeResult(device);
+    }
+
+    private void connectNextBest() {
+        BluetoothDevice device = mClh.getClosestUnconnectedThingies().get(0);
+        connect(device);
     }
 }

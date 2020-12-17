@@ -539,7 +539,7 @@ public class ClhScan {
     private no.nordicsemi.android.support.v18.scanner.ScanCallback scanCallBack = new no.nordicsemi.android.support.v18.scanner.ScanCallback() {
         @Override
         public void onScanResult(int callbackType, @NonNull no.nordicsemi.android.support.v18.scanner.ScanResult result) {
-            clusterHead.addToCluster(result);
+            clusterHead.addToVisible(result);
         }
 
         @Override
@@ -547,7 +547,7 @@ public class ClhScan {
             super.onBatchScanResults(results);
             Log.i(LOG_TAG, "Got " + results.size() + " results in batch");
             for (no.nordicsemi.android.support.v18.scanner.ScanResult result : results) {
-                clusterHead.addToCluster(result);
+                clusterHead.addToVisible(result);
             }
 //            clusterHead.startAdvertisingCluster();
         }

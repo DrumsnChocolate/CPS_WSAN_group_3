@@ -1,6 +1,8 @@
 package no.nordicsemi.android.nrfthingy.ClusterHead;
 
+import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
+import android.util.Log;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -30,7 +32,9 @@ public class ClusterHead extends Observable {
     private final ArrayList<BaseDataPacket> mClhProcDataList = new ArrayList<>(MAX_PROCESS_LIST_ITEM);
     private final ClhProcessData mClhProcessData = new ClhProcessData(mClhProcDataList, MAX_PROCESS_LIST_ITEM);
 
-    private final ArrayList<ClusterLeaf> cluster = new ArrayList<>();
+    private final ArrayList<BluetoothDevice> connecting = new ArrayList<>();
+    private final ArrayList<BluetoothDevice> connected = new ArrayList<>();
+    private final ArrayList<ClusterLeaf> visible = new ArrayList<>();
     private final ArrayList<ScanResult> results = new ArrayList<>();
     private boolean formedClusters = false;
     private boolean mClusterAdvertising = false;
@@ -129,17 +133,17 @@ public class ClusterHead extends Observable {
         mClhAdvertiser.clearAdvList();
     }
 
-    public void addToCluster(ScanResult result) {
+    public void addToVisible(ScanResult result) {
         ClusterLeaf leaf = new ClusterLeaf(result);
-        if (!cluster.contains(leaf)) {
-            for (int i = 0; i < cluster.size(); i++) {
-                ClusterLeaf c = cluster.get(i);
+        if (!visible.contains(leaf)) {
+            for (int i = 0; i < visible.size(); i++) {
+                ClusterLeaf c = visible.get(i);
                 if (c.getAddress().equals(leaf.getAddress())) {
-                    cluster.remove(c);
+                    visible.remove(c);
                     i--;
                 }
             }
-            cluster.add(leaf);
+            visible.add(leaf);
         }
         if (!results.contains(result)) {
             for (int i = 0; i < results.size(); i++) {
@@ -153,6 +157,93 @@ public class ClusterHead extends Observable {
         }
 
     }
+
+    public void removeFromVisible(BluetoothDevice device) {
+        for (int i = 0; i < results.size(); i++) {
+            if (results.get(i).getDevice().equals(device)) {
+                results.remove(i);
+                i--;
+            }
+        }
+    }
+
+
+
+    public List<BluetoothDevice> getClosestUnconnectedThingies() {
+        Comparator<ScanResult> cp = new Comparator<ScanResult>() {
+            @Override
+            public int compare(ScanResult o1, ScanResult o2) {
+                int rssi1 = o1.getRssi();
+                int rssi2 = o2.getRssi();
+                return Integer.compare(rssi1, rssi2);
+            }
+        };
+        List<ScanResult> sortedResults = (List<ScanResult>) results.clone();
+        List<BluetoothDevice> closest = new ArrayList<>();
+        if (results.size() > CLUSTER_MAX_SIZE) {
+            Collections.sort(sortedResults, cp);
+        }
+        for (int i = 0; i < sortedResults.size(); i++) {
+            closest.add(sortedResults.get(i).getDevice());
+        }
+        for (int i = CLUSTER_MAX_SIZE - 1; i < closest.size(); i++) {
+            closest.remove(i);
+            i--;
+        }
+        Log.i(TAG,closest.toString());
+        return closest;
+    }
+
+    public void connectClosestThingies() {
+        setChanged();
+        notifyObservers();
+    }
+
+    public void removeConnectedDevice(BluetoothDevice device) {
+        for (int i = 0; i < results.size(); i++) {
+            if (results.get(i).getDevice().equals(device)) {
+                results.remove(i);
+                i--;
+            }
+        }
+        for (int i = 0; i < connected.size(); i++) {
+            if (connected.get(i).equals(device)) {
+                connected.remove(i);
+                i--;
+            }
+        }
+    }
+
+    public void addConnectedDevice(BluetoothDevice device) {
+        connected.add(device);
+    }
+
+    public void addConnectingDevice(BluetoothDevice device) {
+        connecting.add(device);
+    }
+
+    public void removeConnectingDevice(BluetoothDevice device) {
+        for (int i = 0; i < connecting.size(); i++) {
+            if (connecting.get(i).equals(device)) {
+                connecting.remove(i);
+                i--;
+            }
+        }
+    }
+
+    public void removeResult(BluetoothDevice device) {
+        for (int i = 0; i < results.size(); i++) {
+            if (results.get(i).getDevice().equals(device)) {
+                results.remove(i);
+                i--;
+            }
+        }
+    }
+
+    public boolean clusterIsFull() {
+        return connected.size() + connecting.size() >= CLUSTER_MAX_SIZE;
+    }
+
 
 //    public void startAdvertisingCluster() {
 //        Log.i(TAG, "Started advertising the cluster: " + cluster.toString());
@@ -200,32 +291,4 @@ public class ClusterHead extends Observable {
 //        }
 //    }
 
-
-
-    public List<ScanResult> getClosestThingies() {
-        Comparator<ScanResult> cp = new Comparator<ScanResult>() {
-            @Override
-            public int compare(ScanResult o1, ScanResult o2) {
-                int rssi1 = o1.getRssi();
-                int rssi2 = o2.getRssi();
-                return Integer.compare(rssi1, rssi2);
-            }
-        };
-        List<ScanResult> closest = results;
-        if (results.size() > CLUSTER_MAX_SIZE) {
-            List<ScanResult> sortedResults = (List<ScanResult>) results.clone();
-            Collections.sort(sortedResults, cp);
-            closest = sortedResults;
-            for (int i = CLUSTER_MAX_SIZE - 1; i < closest.size(); i++) {
-                closest.remove(i);
-                i--;
-            }
-        }
-        return closest;
-    }
-
-    public void connectClosestThingies() {
-        setChanged();
-        notifyObservers();
-    }
 }
