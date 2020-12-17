@@ -236,7 +236,7 @@ public class ClhScan {
                 ClhScanHistoryArray.append(sourceAndPacketId, 0);
             }
 
-            Log.i(LOG_TAG, "Handling packet");
+            Log.i(LOG_TAG, "Handling packet with ID "+ receivedPacket.getPacketID());
             if (receivedPacket instanceof RoutingDataPacket) {
                 // Routing packet
                 handleRoutingPacket((RoutingDataPacket) receivedPacket);
@@ -284,6 +284,9 @@ public class ClhScan {
                 break;
             case ClusteringDataPacket.PACKET_TYPE:
                 packet = new ClusteringDataPacket();
+                break;
+            case ActuateThingyPacket.PACKET_TYPE:
+                packet = new ActuateThingyPacket();
                 break;
             default:
                 Log.i(LOG_TAG, "Received packet with unknown packet type " + packetType);
@@ -401,11 +404,12 @@ public class ClhScan {
      * @param soundEventPacket The packet
      */
     private void handleSoundEventPacket(SoundEventDataPacket soundEventPacket) {
+        Log.i(LOG_TAG, "                                                                Received a Sound Event with amplitude " + soundEventPacket.getAmplitude() + " and duration " + soundEventPacket.getDuration());
         if (mIsSink) {
             // If this Cluster Head is the Sink node (ID=0), add the data to the buffer
             // There it is compared to other incoming data
             mClhProcessData.addProcessPacketToBuffer(soundEventPacket);
-            Log.i(LOG_TAG, "Received a Sound Event with amplitude " + soundEventPacket.getAmplitude() + " and duration " + soundEventPacket.getDuration());
+
             Log.i(LOG_TAG, "Add event to process list, new lenght:" + mClhProcDataList.size());
         } else {
             forwardPacket(soundEventPacket);
@@ -421,15 +425,17 @@ public class ClhScan {
     }
 
     private void handleActuateThingyPacket(ActuateThingyPacket actuateThingyPacket) {
+
+        Log.i(LOG_TAG, "                                                                Handling actuation packet for clusterhead "+ actuateThingyPacket.getDestinationID());
         if (mClhID == actuateThingyPacket.getDestinationID()) {
             // If this clusterhead is the intended recipient, process the packet
             byte thingyID = actuateThingyPacket.getThingyId();
 
-            Log.i("SoundFragment", "Received packet to turn on LED for Thingy "+ thingyID);
+            Log.i("SoundFragment", "                                            Received packet to turn on LED for Thingy "+ thingyID);
 
             //TODO alter this code to actually set the Thingy LED color via the cluster database
             // Must first wait for Clusterhead-Thingies connection to be implemented
-
+            mSoundFragment.turnOnLED();
 
         } else {
             // If packet is not meant for this clusterhead, forward it

@@ -107,7 +107,7 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
     private static final float ALPHA_MAX = 0.60f;
     private static final float ALPHA_MIN = 0.0f;
     private static final int DURATION = 800;
-    private static final int SINK_PROCESS_INTERVAL = 1000; // Number of ms between packet processing
+    private static final int SINK_PROCESS_INTERVAL = ClhConst.SINK_PROCESS_INTERVAL;
     public static final int MICROPHONE_BUFFER_PROCESS_INTERVAL = ClhConst.MICROPHONE_BUFFER_PROCESS_INTERVAL;
 
     private ImageView mMicrophone;
@@ -516,16 +516,17 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
                         public void run() {
                             // First check if we're actually active
                             while (getStartButtonState()) {
-                                if (mIsSink) {
-                                    // The sink must process packet buffer
-                                    processSinkBuffer();
-                                } else {
-                                    // Clusterheads must process microphone buffer
-                                    processMicrophoneBuffer();
-                                }
-
                                 try {
-                                    Thread.sleep(MICROPHONE_BUFFER_PROCESS_INTERVAL);
+                                    if (mIsSink) {
+                                        // The sink must process packet buffer
+                                        processSinkBuffer();
+                                        Thread.sleep(SINK_PROCESS_INTERVAL);
+                                    } else {
+                                        // Clusterheads must process microphone buffer
+                                        processMicrophoneBuffer();
+                                        Thread.sleep(MICROPHONE_BUFFER_PROCESS_INTERVAL);
+                                    }
+
                                 } catch (InterruptedException e) {
                                     e.printStackTrace();
                                 }
@@ -818,6 +819,7 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
     private void processSinkBuffer() {
         ActuateThingyPacket thingyPacket = mClhProcessor.getLoudestThingy();
         if (thingyPacket != null) {
+            Log.i(LOG_TAG, "                                    Sending an actuation packet to clusterhead "+ thingyPacket.getDestinationID());
             // Send packet if it exists
             mClhAdvertiser.addAdvPacketToBuffer(thingyPacket, true);
         }
@@ -827,7 +829,6 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
         SoundEventDataPacket soundPacket = mClhProcessor.findSoundEventsInMicrophoneBuffer();
 
         if (soundPacket != null) {
-            Log.i(LOG_TAG, "Created soundEvent packet");
             // Populate package further
             soundPacket.setThingyId((byte) 1); //TODO Retrieve actual thingy ID
             soundPacket.setSourceID(mClhID);
@@ -839,18 +840,21 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
 
             //TODO Test code to see if we can get the Thingy to turn on
             //==================
-            // This part of code exists for testing single direct thingy connection
-//            if (mDevice != null) {
-//                Log.i(LOG_TAG, "Tried to turn on Thingy LED");
-//                final BluetoothDevice device = mDevice;
-//                if (mThingySdkManager.isConnected(device)) {
-//                    int ledIntensity = 50; // Percent, bright enough for blue LED
-//                    int ledColor = ThingyUtils.LED_BLUE; // Because it's pretty
-//                    mThingySdkManager.setOneShotLedMode(device, ledColor, ledIntensity);
-//                }
-//            }
+//            turnOnLED();
             // End test code
             //==================
+        }
+    }
+
+    public void turnOnLED() {
+        if (mDevice != null) {
+            final BluetoothDevice device = mDevice;
+            if (mThingySdkManager.isConnected(device)) {
+                int ledIntensity = 50; // Percent, bright enough for blue LED
+                int ledColor = ThingyUtils.LED_GREEN; // Because it's pretty
+                mThingySdkManager.setOneShotLedMode(device, ledColor, ledIntensity);
+            }
+            Log.i(LOG_TAG, "Tried to turn on Thingy LED");
         }
     }
 
