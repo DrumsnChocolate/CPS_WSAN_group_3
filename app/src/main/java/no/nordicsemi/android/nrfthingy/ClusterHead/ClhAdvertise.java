@@ -274,8 +274,8 @@ public class ClhAdvertise {
             SoundEventDataPacket advData = new SoundEventDataPacket();
             advData.setSourceID(processedClh.getClhID());   // Get the ID of the current ClusterHead that is processing the data
             advData.setDestId((byte) 0);    // The sink has ID 0
-            advData.setThingyDataType((byte) 10);   // Set the data type
-            advData.setThingyId((byte) 1);  // TODO add ThingyID when Thingy is added to SoundFragment
+            advData.setThingyDataType((byte) 10);   // TODO Set the data type
+            advData.setThingyId((byte) 1);  // TODO Add ThingyID when Thingy is added to SoundFragment
             advData.setHopCount((byte) 0);  // The data is processed in the first ClusterHead, so the HopCount is still 0
 
             advData.setAmplitude(processedData[1]); // Set the amplitude

@@ -11,8 +11,13 @@ public class ClhConst {
     public static final long SCAN_PERIOD = 60000*5;   //scan 10 minutes
     public static final long REST_PERIOD=1000; //rest in 1 sec
     public static final int SCAN_HISTORY_LIST_SIZE=512; //max item in history list
+    public static final int MAX_HOP_COUNT=10;
 
     //for processor
     public static final int MAX_PROCESS_LIST_ITEM=128; //max items in waiting list for processing
+    public static final int MICROPHONE_BUFFER_PROCESS_INTERVAL = 200; // Number of ms between microphone buffer processing
+    public static final int MICROPHONE_PROCESS_THRESHOLD = 40000;
+    public static final double MICROPHONE_PROCESS_DECAY_FACTOR = 0.99; // Decay factor for envelope function
+    public static final int MICROPHONE_PROCESS_MIN_DATAPOINTS_ABOVE_THRESHOLD = 1000;
 
 }

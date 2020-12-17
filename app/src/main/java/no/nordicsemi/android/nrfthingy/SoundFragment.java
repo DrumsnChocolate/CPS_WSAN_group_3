@@ -84,6 +84,7 @@ import no.nordicsemi.android.nrfthingy.ClusterHead.ClhConst;
 import no.nordicsemi.android.nrfthingy.ClusterHead.ClhProcessData;
 import no.nordicsemi.android.nrfthingy.ClusterHead.ClhScan;
 import no.nordicsemi.android.nrfthingy.ClusterHead.ClusterHead;
+import no.nordicsemi.android.nrfthingy.ClusterHead.packet.BaseDataPacket;
 import no.nordicsemi.android.nrfthingy.ClusterHead.packet.SoundEventDataPacket;
 import no.nordicsemi.android.nrfthingy.common.MessageDialogFragment;
 import no.nordicsemi.android.nrfthingy.common.PermissionRationaleDialogFragment;
@@ -107,6 +108,7 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
     private static final float ALPHA_MIN = 0.0f;
     private static final int DURATION = 800;
     private static final int SINK_PROCESS_INTERVAL = 1000; // Number of ms between packet processing
+    public static final int MICROPHONE_BUFFER_PROCESS_INTERVAL = ClhConst.MICROPHONE_BUFFER_PROCESS_INTERVAL;
 
     private ImageView mMicrophone;
     private ImageView mMicrophoneOverlay;
@@ -232,15 +234,23 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
         }
 
         @Override
-        public void onMicrophoneValueChangedEvent(BluetoothDevice bluetoothDevice, final byte[] data) {
-            if (data != null) {
-                if (data.length != 0) {
+        public void onMicrophoneValueChangedEvent(BluetoothDevice bluetoothDevice, final byte[] dataBytes) {
+            if (dataBytes != null) {
+                if (dataBytes.length != 0) {
 
+                    // Transform byte data into int data
+                    int[] data = new int[dataBytes.length / 2];
+                    for (int i = 0; i < data.length; i++) {
+                        // The shift by 32768 is added so we don't have to work with signed ints
+                        // Be aware that the order in which each duo of bytes is stored is the reverse of an actual int.
+                        //  e.g. the second byte stores the higher part, and the first byte the lower part
+                        data[i] = ((dataBytes[2*i+1] << 8) + ((dataBytes[2*i]) & 0x00FF) + 32768);
+                    }
 
                     mHandler.post(new Runnable() {
                         @Override
                         public void run() {
-                            mVoiceVisualizer.draw(data);
+                            mVoiceVisualizer.draw(dataBytes);
 
                         }
                     });
@@ -248,11 +258,8 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
                     //PSG edit No.1
                     //audio receive event
                     if( mStartPlayingAudio = true) {
-                        int[] processedData;
-                        processedData = mClhProcessor.initialProcess(data);    // Process the data in the first clusterhead
-                        if (processedData[0] == 1) {
-                            mClhAdvertiser.addProcessedData(data, processedData, mClh); // TODO change to new version for SoundEventDataPacket
-                        }
+                        // Add data to buffer, so it may be processed later
+                        mClhProcessor.addMicrophoneDataToBuffer(data);
                     }
                     //End PSG edit No.1
 
@@ -304,7 +311,8 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
     private Button mAdvertiseButton;
     private EditText mClhIDInput;
     private TextView mClhLog;
-    private final String LOG_TAG="CLH Sound";
+    private final String LOG_TAG="CLH Sound fragment: ";
+    private boolean startButtonState = false;
 
     private SoundEventDataPacket mClhData = new SoundEventDataPacket();
     private boolean mIsSink=false;
@@ -454,23 +462,11 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
         mClhLog= rootView.findViewById(R.id.logClh_text);
 
         //initial Clusterhead: advertiser, scanner, processor
-        mClh=new ClusterHead(mClhID);
+        mClh=new ClusterHead(mClhID, this);
         mClh.initClhBLE(ClhConst.ADVERTISING_INTERVAL);
         mClhAdvertiser=mClh.getClhAdvertiser();
         mClhScanner=mClh.getClhScanner();
         mClhProcessor=mClh.getClhProcessor();
-
-        //timer for SINK to process received data
-        final Handler handler=new Handler();
-        handler.postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                handler.postDelayed(this, SINK_PROCESS_INTERVAL); //loop every cycle
-                if(mIsSink) {
-                    processSinkBuffer();
-                }
-            }
-        }, SINK_PROCESS_INTERVAL); //the time you want to delay in milliseconds
 
         //"Start" button Click Handler
         // get Cluster Head ID (0-127) in text box to initialize advertiser
@@ -487,6 +483,7 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
                 if (mAdvertiseButton.getText().toString().equals("Start")) {
                     mAdvertiseButton.setText("Stop");
                     mClhIDInput.setEnabled(false);
+                    startButtonState = true;
 
                     mClh.clearClhAdvList(); //empty list before starting
 
@@ -504,6 +501,29 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
                         mIsSink = mClh.setClhID(mClhID, true);
                         Log.i(LOG_TAG, "set ClhID:"+mClhID);
                     }
+
+                    // Start a new repeating thread for data processing, both for clusterhead and sink
+                    new Thread(new Runnable() {
+                        @Override
+                        public void run() {
+                            // First check if we're actually active
+                            while (getStartButtonState()) {
+                                if (mIsSink) {
+                                    // The sink must process packet buffer
+                                    processSinkBuffer();
+                                } else {
+                                    // Clusterheads must process microphone buffer
+                                    processMicrophoneBuffer();
+                                }
+
+                                try {
+                                    Thread.sleep(MICROPHONE_BUFFER_PROCESS_INTERVAL);
+                                } catch (InterruptedException e) {
+                                    e.printStackTrace();
+                                }
+                            }
+                        }
+                    }). start();
 
                     //ID=127, set dummy data include 100 elements for testing purpose
                     if(mClhID==127) {
@@ -538,6 +558,7 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
                     mAdvertiseButton.setText("Start");
                     mClhIDInput.setEnabled(true);
                     mClhAdvertiser.stopAdvertiseClhData();
+                    startButtonState = false;
                 }
             }
         });
@@ -792,6 +813,41 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
             // Send packet if it exists
             mClhAdvertiser.addAdvPacketToBuffer(thingyPacket, true);
         }
+    }
+
+    private void processMicrophoneBuffer() {
+        SoundEventDataPacket soundPacket = mClhProcessor.findSoundEventsInMicrophoneBuffer();
+
+        if (soundPacket != null) {
+            Log.i(LOG_TAG, "Created soundEvent packet");
+            // Populate package further
+            soundPacket.setThingyId((byte) 1); //TODO Retrieve actual thingy ID
+            soundPacket.setSourceID(mClhID);
+            soundPacket.setDestId(BaseDataPacket.SINK_ID);
+            Log.i(LOG_TAG, "                                        Amplitude: "+ soundPacket.getAmplitude() +", Duration: "+ soundPacket.getDuration());
+            // Send packet
+            mClhAdvertiser.addAdvPacketToBuffer(soundPacket, true);
+
+
+            //TODO Test code to see if we can get the Thingy to turn on
+            //==================
+            // This part of code exists for testing single direct thingy connection
+//            if (mDevice != null) {
+//                Log.i(LOG_TAG, "Tried to turn on Thingy LED");
+//                final BluetoothDevice device = mDevice;
+//                if (mThingySdkManager.isConnected(device)) {
+//                    int ledIntensity = 50; // Percent, bright enough for blue LED
+//                    int ledColor = ThingyUtils.LED_BLUE; // Because it's pretty
+//                    mThingySdkManager.setOneShotLedMode(device, ledColor, ledIntensity);
+//                }
+//            }
+            // End test code
+            //==================
+        }
+    }
+
+    public boolean getStartButtonState() {
+        return startButtonState;
     }
 
 }
