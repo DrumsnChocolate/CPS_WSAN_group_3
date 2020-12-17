@@ -21,7 +21,6 @@ import java.util.List;
 
 import no.nordicsemi.android.nrfthingy.ClusterHead.packet.ActuateThingyPacket;
 import no.nordicsemi.android.nrfthingy.ClusterHead.packet.BaseDataPacket;
-import no.nordicsemi.android.nrfthingy.ClusterHead.packet.ClusteringDataPacket;
 import no.nordicsemi.android.nrfthingy.ClusterHead.packet.RoutingDataPacket;
 import no.nordicsemi.android.nrfthingy.ClusterHead.packet.SoundDataPacket;
 import no.nordicsemi.android.nrfthingy.ClusterHead.packet.SoundEventDataPacket;
@@ -243,10 +242,6 @@ public class ClhScan {
             } else if (receivedPacket instanceof SoundEventDataPacket) {
                 // Packet with sound event data
                 handleSoundEventPacket((SoundEventDataPacket) receivedPacket);
-            } else if (receivedPacket instanceof ClusteringDataPacket) {
-                handleClusteringPacket((ClusteringDataPacket) receivedPacket);
-                // Also forward the packet to other nodes.
-                forwardPacket(receivedPacket);
             } else if (receivedPacket instanceof ActuateThingyPacket) {
                 // Packet with thingy actuation data
                 handleActuateThingyPacket((ActuateThingyPacket) receivedPacket);
@@ -281,9 +276,6 @@ public class ClhScan {
                 break;
             case SoundEventDataPacket.PACKET_TYPE:
                 packet = new SoundEventDataPacket();
-                break;
-            case ClusteringDataPacket.PACKET_TYPE:
-                packet = new ClusteringDataPacket();
                 break;
             default:
                 Log.i(LOG_TAG, "Received packet with unknown packet type " + packetType);
@@ -412,13 +404,13 @@ public class ClhScan {
         }
     }
 
-    private void handleClusteringPacket(ClusteringDataPacket clusteringDataPacket) {
-        Log.i(LOG_TAG, "Handling clustering data packet");
-        Log.i(LOG_TAG, clusteringDataPacket.toString());
-        clusterHead.addExternalClusteringDataPacket(clusteringDataPacket);
-
-        // TODO implement
-    }
+//    private void handleClusteringPacket(ClusteringDataPacket clusteringDataPacket) {
+//        Log.i(LOG_TAG, "Handling clustering data packet");
+//        Log.i(LOG_TAG, clusteringDataPacket.toString());
+//        clusterHead.addExternalClusteringDataPacket(clusteringDataPacket);
+//
+//        // TODO implement
+//    }
 
     private void handleActuateThingyPacket(ActuateThingyPacket actuateThingyPacket) {
         if (mClhID == actuateThingyPacket.getDestinationID()) {
@@ -523,7 +515,8 @@ public class ClhScan {
                 public void run() {
                     if (mThingyScanning) {
                         scanner.stopScan(scanCallBack);
-                        clusterHead.startAdvertisingCluster();
+//                        clusterHead.startAdvertisingCluster();
+                        clusterHead.connectClosestThingies();
                     }
                 }
             }, THINGY_SCAN_DURATION);

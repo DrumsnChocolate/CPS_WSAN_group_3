@@ -1,26 +1,25 @@
 package no.nordicsemi.android.nrfthingy.ClusterHead;
 
 import android.bluetooth.BluetoothDevice;
-import android.nfc.Tag;
-import android.util.Log;
-import android.util.Pair;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Observable;
 
 import no.nordicsemi.android.nrfthingy.ClusterHead.packet.BaseDataPacket;
-import no.nordicsemi.android.nrfthingy.ClusterHead.packet.ClusteringDataPacket;
-import no.nordicsemi.android.nrfthingy.thingy.Thingy;
+import no.nordicsemi.android.nrfthingy.thingy.ThingyService;
 import no.nordicsemi.android.support.v18.scanner.ScanResult;
-import no.nordicsemi.android.thingylib.BaseThingyService;
-import no.nordicsemi.android.thingylib.ThingySdkManager;
-import no.nordicsemi.android.nrfthingy.ClusterHead.packet.SoundDataPacket;
 import no.nordicsemi.android.nrfthingy.SoundFragment;
+import no.nordicsemi.android.thingylib.ThingySdkManager;
 
-public class ClusterHead {
+public class ClusterHead extends Observable {
     private static final int MAX_ADVERTISE_LIST_ITEM = ClhConst.MAX_ADVERTISE_LIST_ITEM; //max items in waiting list for advertising
     private static final int MAX_PROCESS_LIST_ITEM = ClhConst.MAX_PROCESS_LIST_ITEM; //max items in waiting list for processing
     private static final String TAG = "Clusterhead";
     private static final int N_CLUSTERHEAD = 2; // TODO make sure this number is correct
+    private static final int CLUSTER_MAX_SIZE = 4;
     private boolean mIsSink = false;
     private byte mClhID = 1;
     private final ArrayList<BaseDataPacket> mClhAdvDataList = new ArrayList<BaseDataPacket>(MAX_ADVERTISE_LIST_ITEM);
@@ -32,13 +31,17 @@ public class ClusterHead {
     private final ClhProcessData mClhProcessData = new ClhProcessData(mClhProcDataList, MAX_PROCESS_LIST_ITEM);
 
     private final ArrayList<ClusterLeaf> cluster = new ArrayList<>();
-    private final ArrayList<ClusteringDataPacket> externalClusteringDataPackets = new ArrayList<>();
+    private final ArrayList<ScanResult> results = new ArrayList<>();
     private boolean formedClusters = false;
     private boolean mClusterAdvertising = false;
 
-    public ClusterHead() {
-        mClhScanner.setClusterHead(this);
-    }
+    private ThingyService.ThingyBinder mBinder;
+    private ThingySdkManager mThingySdkManager;
+
+
+//    public ClusterHead() {
+//        mClhScanner.setClusterHead(this);
+//    }
 
     //construtor,
     //params: id: cluster head ID
@@ -46,6 +49,8 @@ public class ClusterHead {
         if (id > 127) id -= 127;
         setClhID(id, false);
         mClhScanner.setClusterHead(this);
+        mThingySdkManager = ThingySdkManager.getInstance();
+        mBinder = (ThingyService.ThingyBinder) mThingySdkManager.getThingyBinder();
     }
 
     public ClusterHead(byte id, SoundFragment soundFragmentObject) {
@@ -127,55 +132,100 @@ public class ClusterHead {
     public void addToCluster(ScanResult result) {
         ClusterLeaf leaf = new ClusterLeaf(result);
         if (!cluster.contains(leaf)) {
-            for (ClusterLeaf c : cluster) {
-                if (c.getAddress() == leaf.getAddress()) {
+            for (int i = 0; i < cluster.size(); i++) {
+                ClusterLeaf c = cluster.get(i);
+                if (c.getAddress().equals(leaf.getAddress())) {
                     cluster.remove(c);
+                    i--;
                 }
             }
             cluster.add(leaf);
         }
-    }
-
-    public void startAdvertisingCluster() {
-        Log.i(TAG, "Started advertising the cluster: " + cluster.toString());
-        mClusterAdvertising = true;
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                while (mClusterAdvertising) {
-                    try {
-                        Log.i(TAG, "Sending clustering packet!");
-                        ClusteringDataPacket clusteringDataPacket = new ClusteringDataPacket();
-                        clusteringDataPacket.setSourceID(mClhID);
-                        clusteringDataPacket.setCluster(cluster);
-                        mClhAdvertiser.addAdvPacketToBuffer(clusteringDataPacket, true);
-                        Thread.sleep(2000);
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
-
+        if (!results.contains(result)) {
+            for (int i = 0; i < results.size(); i++) {
+                ScanResult sr = results.get(i);
+                if (sr.getDevice().getAddress().equals(result.getDevice().getAddress())) {
+                    results.remove(sr);
+                    i--;
                 }
             }
-        }).start();
+            results.add(result);
+        }
 
-//        mClhAdvertiser.stopAdvertiseClhData();
     }
 
-    public void addExternalClusteringDataPacket(ClusteringDataPacket clusteringDataPacket) {
-        Log.i(TAG, "Adding external clustering data packet");
-        for (int i = 0; i < externalClusteringDataPackets.size(); i++) {
-            ClusteringDataPacket externalClusteringDataPacket = externalClusteringDataPackets.get(i);
-            if (clusteringDataPacket.getSourceID() == externalClusteringDataPacket.getSourceID()) {
-                externalClusteringDataPackets.remove(externalClusteringDataPacket);
+//    public void startAdvertisingCluster() {
+//        Log.i(TAG, "Started advertising the cluster: " + cluster.toString());
+//        mClusterAdvertising = true;
+//        new Thread(new Runnable() {
+//            @Override
+//            public void run() {
+//                while (mClusterAdvertising) {
+//                    try {
+//                        Log.i(TAG, "Sending clustering packet!");
+//                        ClusteringDataPacket clusteringDataPacket = new ClusteringDataPacket();
+//                        clusteringDataPacket.setSourceID(mClhID);
+//                        clusteringDataPacket.setCluster(cluster);
+//                        mClhAdvertiser.addAdvPacketToBuffer(clusteringDataPacket, true);
+//                        Thread.sleep(2000);
+//                    } catch (InterruptedException e) {
+//                        e.printStackTrace();
+//                    }
+//
+//                }
+//            }
+//        }).start();
+//
+////        mClhAdvertiser.stopAdvertiseClhData();
+//    }
+
+//    public void addExternalClusteringDataPacket(ClusteringDataPacket clusteringDataPacket) {
+//        Log.i(TAG, "Adding external clustering data packet");
+//        for (int i = 0; i < externalClusteringDataPackets.size(); i++) {
+//            ClusteringDataPacket externalClusteringDataPacket = externalClusteringDataPackets.get(i);
+//            if (clusteringDataPacket.getSourceID() == externalClusteringDataPacket.getSourceID()) {
+//                externalClusteringDataPackets.remove(externalClusteringDataPacket);
+//            }
+//        }
+//        externalClusteringDataPackets.add(clusteringDataPacket);
+//        if (externalClusteringDataPackets.size() == N_CLUSTERHEAD - 1) {
+//            // TODO: form clusters.
+//            if (!formedClusters) {
+//                formedClusters = true;
+//                Log.i(TAG, "Received clustering info from all clusterheads! forming clusters should be possible!");
+//                for (ClusteringDataPacket p : externalClusteringDataPackets) {
+//                    Log.i(TAG, p.getCluster().toString());
+//                }
+//            }
+//        }
+//    }
+
+
+
+    public List<ScanResult> getClosestThingies() {
+        Comparator<ScanResult> cp = new Comparator<ScanResult>() {
+            @Override
+            public int compare(ScanResult o1, ScanResult o2) {
+                int rssi1 = o1.getRssi();
+                int rssi2 = o2.getRssi();
+                return Integer.compare(rssi1, rssi2);
+            }
+        };
+        List<ScanResult> closest = results;
+        if (results.size() > CLUSTER_MAX_SIZE) {
+            List<ScanResult> sortedResults = (List<ScanResult>) results.clone();
+            Collections.sort(sortedResults, cp);
+            closest = sortedResults;
+            for (int i = CLUSTER_MAX_SIZE - 1; i < closest.size(); i++) {
+                closest.remove(i);
+                i--;
             }
         }
-        externalClusteringDataPackets.add(clusteringDataPacket);
-        if (externalClusteringDataPackets.size() == N_CLUSTERHEAD - 1) {
-            // TODO: form clusters.
-            if (!formedClusters) {
-                formedClusters = true;
-                Log.i(TAG, "Received clustering info from all clusterheads! forming clusters should be possible!");
-            }
-        }
+        return closest;
+    }
+
+    public void connectClosestThingies() {
+        setChanged();
+        notifyObservers();
     }
 }
