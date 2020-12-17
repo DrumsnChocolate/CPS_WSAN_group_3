@@ -62,6 +62,7 @@ import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
 import androidx.fragment.app.FragmentPagerAdapter;
 import androidx.core.content.ContextCompat;
+import androidx.lifecycle.MutableLiveData;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 import androidx.viewpager.widget.ViewPager;
 import androidx.appcompat.widget.Toolbar;
@@ -132,6 +133,8 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
     private boolean mStartPlayingAudio = false;
 
     private View mRootView;
+
+    MutableLiveData<SoundEventDataPacket> liveSoundEventPacket;
 
     private ThingyListener mThingyListener = new ThingyListener() {
         private Handler mHandler = new Handler();
@@ -533,6 +536,7 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
                                 if (mIsSink) {
                                     // The sink must process packet buffer
                                     processSinkBuffer();
+
                                 } else {
                                     // Clusterheads must process microphone buffer
                                     processMicrophoneBuffer();
@@ -831,6 +835,8 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
 
     private void processSinkBuffer() {
         ActuateThingyPacket thingyPacket = mClhProcessor.getLoudestThingy();
+            // update data to write in the graph
+        liveSoundEventPacket.setValue(mClhProcessor.getGreatestAmplitudePacket());
         if (thingyPacket != null) {
             // Send packet if it exists
             mClhAdvertiser.addAdvPacketToBuffer(thingyPacket, true);
@@ -875,42 +881,25 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
     BarChart barChart1;
     BarChart barChart2;
     private void setupVisualization() {
-        // Graphs
+        final ArrayList<BarEntry> barEntries2 = new ArrayList<>();
+        final ArrayList<String> thingyId= new ArrayList<>();
         barChart1 = mRootView.findViewById(R.id.bargraph1);
         barChart2 = mRootView.findViewById(R.id.bargraph2);
-        ArrayList<BarEntry> barEntries2 = new ArrayList<>();
-        barEntries2.add(new BarEntry(44f,0));
-        barEntries2.add(new BarEntry(88f,1));
-        BarDataSet barDataSet2 = new BarDataSet(barEntries2,"thingies");
+        
+        // live data setup
+        liveSoundEventPacket = new MutableLiveData<>();
+        liveSoundEventPacket.observeForever(new androidx.lifecycle.Observer<SoundEventDataPacket>() {
+            @Override
+            public void onChanged(SoundEventDataPacket soundPacket) {
+                // Graphs
+                barEntries2.add(new BarEntry(soundPacket.getAmplitude(), soundPacket.getThingyId()));
+                thingyId.add("ID: " + soundPacket.getThingyId());
+                BarDataSet barDataSet2 = new BarDataSet(barEntries2,"thingies");
+                BarData theData1 = new BarData(thingyId, barDataSet2);
+                barChart1.setData(theData1);
+            }
+        });
         ArrayList<BarEntry>barEntries1 =new ArrayList<>();
-        barEntries1.add(new BarEntry(44f,0));
-        barEntries1.add(new BarEntry(44f,1));
-        BarDataSet barDataSet1 = new BarDataSet(barEntries1,"thingies");
-        ArrayList<String> thethingies = new ArrayList<>();
-        thethingies.add("thingy1");
-        thethingies.add("thingy2");
-        thethingies.add("thingy3");
-        thethingies.add("thingy4");
-        thethingies.add("thingy5");
-        thethingies.add("thingy6");
-        thethingies.add("thingy7");
-        thethingies.add("thingy8");
-        thethingies.add("thingy9");
-        thethingies.add("thingy10");
-        thethingies.add("thingy11");
-        thethingies.add("thingy12");
-        thethingies.add("thingy13");
-        thethingies.add("thingy14");
-        thethingies.add("thingy15");
-        thethingies.add("thingy16");
-        thethingies.add("thingy17");
-        thethingies.add("thingy18");
-        thethingies.add("thingy19");
-        thethingies.add("thingy20");
-        BarData theData1 = new BarData(thethingies,barDataSet1);
-        BarData theData2 = new BarData(thethingies,barDataSet2);
-        barChart1.setData(theData1);
-        barChart2.setData(theData2);
 
         // List
         LinearLayout eventsList = mRootView.findViewById(R.id.eventsList);

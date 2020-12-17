@@ -2,6 +2,8 @@ package no.nordicsemi.android.nrfthingy.ClusterHead;
 
 import android.util.Log;
 
+import androidx.lifecycle.MutableLiveData;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 
@@ -22,6 +24,8 @@ public class ClhProcessData {
     private ArrayList<BaseDataPacket> mClhProcessDataList;
     private int[] mClhMicrophoneDataBuffer;
 
+    private SoundEventDataPacket greatestAmplitudePacket = new SoundEventDataPacket();;
+
     public ClhProcessData() {
         mClhProcessDataList = new ArrayList<BaseDataPacket>(MAX_PROCESS_LIST_ITEM);
         clearMicrophoneDataBuffer();
@@ -41,7 +45,7 @@ public class ClhProcessData {
     public ActuateThingyPacket getLoudestThingy() {
         ArrayList<BaseDataPacket> procList = getProcessDataList();
 
-        SoundEventDataPacket greatestAmplitudePacket = new SoundEventDataPacket();
+
         greatestAmplitudePacket.setAmplitude(0);
         greatestAmplitudePacket.setThingyId((byte) -1);
 
@@ -191,5 +195,9 @@ public class ClhProcessData {
         System.arraycopy(mClhMicrophoneDataBuffer, 0, newBuffer, 0, bufferLength);
         System.arraycopy(data, 0, newBuffer, bufferLength, data.length);
         mClhMicrophoneDataBuffer = newBuffer;
+    }
+
+    public SoundEventDataPacket getGreatestAmplitudePacket() {
+        return greatestAmplitudePacket;
     }
 }
