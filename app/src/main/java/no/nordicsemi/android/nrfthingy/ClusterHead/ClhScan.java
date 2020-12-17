@@ -277,9 +277,6 @@ public class ClhScan {
             case SoundEventDataPacket.PACKET_TYPE:
                 packet = new SoundEventDataPacket();
                 break;
-            case ClusteringDataPacket.PACKET_TYPE:
-                packet = new ClusteringDataPacket();
-                break;
             case ActuateThingyPacket.PACKET_TYPE:
                 packet = new ActuateThingyPacket();
                 break;
