@@ -51,6 +51,11 @@ import android.os.Bundle;
 import android.os.Handler;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+
+import com.github.mikephil.charting.charts.BarChart;
+import com.github.mikephil.charting.data.BarData;
+import com.github.mikephil.charting.data.BarDataSet;
+import com.github.mikephil.charting.data.BarEntry;
 import com.google.android.material.tabs.TabLayout;
 import androidx.core.app.ActivityCompat;
 import androidx.fragment.app.Fragment;
@@ -67,16 +72,20 @@ import android.view.LayoutInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import com.getkeepsafe.taptargetview.TapTarget;
 import com.getkeepsafe.taptargetview.TapTargetSequence;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 import no.nordicsemi.android.nrfthingy.ClusterHead.ClhAdvertise;
 import no.nordicsemi.android.nrfthingy.ClusterHead.packet.ActuateThingyPacket;
@@ -121,6 +130,8 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
     private ThingySdkManager mThingySdkManager;
     private boolean mStartRecordingAudio = false;
     private boolean mStartPlayingAudio = false;
+
+    private View mRootView;
 
     private ThingyListener mThingyListener = new ThingyListener() {
         private Handler mHandler = new Handler();
@@ -337,6 +348,7 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
                              @Nullable final ViewGroup container,
                              @Nullable final Bundle savedInstanceState) {
         final View rootView = inflater.inflate(R.layout.fragment_sound, container, false);
+        mRootView = rootView;
 
         final Toolbar speakerToolbar = rootView.findViewById(R.id.speaker_toolbar);
         speakerToolbar.inflateMenu(R.menu.audio_warning);
@@ -475,6 +487,8 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
             }
         });
         mClhProcessor=mClh.getClhProcessor();
+
+        setupVisualization();
 
         //"Start" button Click Handler
         // get Cluster Head ID (0-127) in text box to initialize advertiser
@@ -858,4 +872,61 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
         return startButtonState;
     }
 
+    BarChart barChart1;
+    BarChart barChart2;
+    private void setupVisualization() {
+        // Graphs
+        barChart1 = mRootView.findViewById(R.id.bargraph1);
+        barChart2 = mRootView.findViewById(R.id.bargraph2);
+        ArrayList<BarEntry> barEntries2 = new ArrayList<>();
+        barEntries2.add(new BarEntry(44f,0));
+        barEntries2.add(new BarEntry(88f,1));
+        BarDataSet barDataSet2 = new BarDataSet(barEntries2,"thingies");
+        ArrayList<BarEntry>barEntries1 =new ArrayList<>();
+        barEntries1.add(new BarEntry(44f,0));
+        barEntries1.add(new BarEntry(44f,1));
+        BarDataSet barDataSet1 = new BarDataSet(barEntries1,"thingies");
+        ArrayList<String> thethingies = new ArrayList<>();
+        thethingies.add("thingy1");
+        thethingies.add("thingy2");
+        thethingies.add("thingy3");
+        thethingies.add("thingy4");
+        thethingies.add("thingy5");
+        thethingies.add("thingy6");
+        thethingies.add("thingy7");
+        thethingies.add("thingy8");
+        thethingies.add("thingy9");
+        thethingies.add("thingy10");
+        thethingies.add("thingy11");
+        thethingies.add("thingy12");
+        thethingies.add("thingy13");
+        thethingies.add("thingy14");
+        thethingies.add("thingy15");
+        thethingies.add("thingy16");
+        thethingies.add("thingy17");
+        thethingies.add("thingy18");
+        thethingies.add("thingy19");
+        thethingies.add("thingy20");
+        BarData theData1 = new BarData(thethingies,barDataSet1);
+        BarData theData2 = new BarData(thethingies,barDataSet2);
+        barChart1.setData(theData1);
+        barChart2.setData(theData2);
+
+        // List
+        LinearLayout eventsList = mRootView.findViewById(R.id.eventsList);
+
+        ArrayList<String> list = new ArrayList<>();
+        list.add("scream");//addhere reference to event
+        list.add("scream");
+        list.add("not a scream");
+        list.add("scream");
+
+        eventsList.removeAllViews();
+        for (String item : list) {
+            TextView listItem = new TextView(this.getContext());
+            listItem.setText(item);
+            listItem.setPadding(0, 15, 0, 15);
+            eventsList.addView(listItem);
+        }
+    }
 }
