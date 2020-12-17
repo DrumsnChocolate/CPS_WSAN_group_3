@@ -233,10 +233,18 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         }
 
         @Override
-        public void onServiceDiscoveryCompleted(BluetoothDevice device) {
+        public void onServiceDiscoveryCompleted(final BluetoothDevice device) {
             updateBatteryLevelVisibility(View.VISIBLE);
             onServiceDiscoveryCompletion(device);
-            checkForFwUpdates();
+            Handler handler = new Handler();
+            handler.postDelayed(new Runnable() {
+
+                @Override
+                public void run() {
+                    mThingySdkManager.enableThingyMicrophone(device,true);
+                    Log.i(TAG, "Enabled mic on thingy");
+                }
+            }, 2000);
         }
 
         @Override

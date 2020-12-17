@@ -76,6 +76,7 @@ import android.widget.Toast;
 import com.getkeepsafe.taptargetview.TapTarget;
 import com.getkeepsafe.taptargetview.TapTargetSequence;
 
+import java.sql.Time;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
@@ -149,9 +150,9 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
         }
 
         @Override
-        public void onServiceDiscoveryCompleted(BluetoothDevice device) {
-            mThingySdkManager.enableThingyMicrophone(device, true);
-            Log.i(LOG_TAG, "Enabled mic on thingy");
+        public void onServiceDiscoveryCompleted(final BluetoothDevice device) {
+
+
         }
 
         @Override
