@@ -126,11 +126,12 @@ public class Utils {
     public static final int GROUP_ID_ADD_THINGY = 101;
     public static final int GROUP_ID_ABOUT = 102;
     public static final int GROUP_ID_DFU = 103;
-    public static final int GROUP_ID_WSAN = 104;
+    public static final int GROUP_ID_VISUALISATION = 104;
     public static final int ITEM_ID_ADD_THINGY = 201;
     public static final int ITEM_ID_SETTINGS = 202;
     public static final int ITEM_ID_DFU = 203;
-    public static final int ITEM_ID_WSAN = 204;
+    public static final int ITEM_ID_LIST = 204;
+    public static final int ITEM_ID_GRAPH = 205;
 
     public static final int BLE_GAP_ADV_INTERVAL_MIN = 20;//ms
     public static final int BLE_GAP_ADV_INTERVAL_MAX = 10240;//ms

@@ -419,6 +419,7 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
         });
 
 
+
          mThingy.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
