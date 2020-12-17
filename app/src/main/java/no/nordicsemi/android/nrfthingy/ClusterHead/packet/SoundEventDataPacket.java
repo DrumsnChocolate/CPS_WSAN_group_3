@@ -36,7 +36,7 @@ public class SoundEventDataPacket extends BaseDataPacket {
     }
 
     public int getAmplitude() {
-        return (data[EVENT_AMPLITUDE_POSH] << 8) + ((int) (data[EVENT_AMPLITUDE_POSL]) & 0x00FF);
+        return ((data[EVENT_AMPLITUDE_POSH] & 0x00FF) << 8) + ((int) (data[EVENT_AMPLITUDE_POSL]) & 0x00FF);
     }
 
     public void setDuration(int duration) {
