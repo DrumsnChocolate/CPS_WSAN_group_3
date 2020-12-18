@@ -16,6 +16,7 @@ import java.util.UUID;
 
 import no.nordicsemi.android.nrfthingy.ClusterHead.packet.BaseDataPacket;
 import no.nordicsemi.android.nrfthingy.ClusterHead.packet.SoundDataPacket;
+import no.nordicsemi.android.nrfthingy.ClusterHead.packet.SoundEventDataPacket;
 
 
 public class ClhAdvertise {
@@ -209,7 +210,7 @@ public class ClhAdvertise {
                 data.setHopCount(hopcounts);
             }
             mClhAdvDataList.add(data);
-            Log.i(LOG_TAG,"add Adv packet, size:"+mClhAdvDataList.size());
+            Log.i(LOG_TAG,"add Adv packet ID "+ data.getPacketID() +", size:"+mClhAdvDataList.size());
         }
     }
 
@@ -263,6 +264,47 @@ public class ClhAdvertise {
                  0: ADV_SETTING_SENDTXPOWER_NO (default)
                  1: ADV_SETTING_SENDTXPOWER_YES
  --------*/
+
+    //----------------------------------------------------
+    // parcel Sound data and add to waiting list for advertising
+    private static int mProcessedSoundcount=0;
+    public void addProcessedData(byte[]data, int[] processedData, ClusterHead processedClh) {
+
+        if((data!=null) && data.length>0) {
+            SoundEventDataPacket advData = new SoundEventDataPacket();
+            advData.setSourceID(processedClh.getClhID());   // Get the ID of the current ClusterHead that is processing the data
+            advData.setDestId((byte) 0);    // The sink has ID 0
+            advData.setThingyDataType((byte) 10);   // TODO Set the data type
+            advData.setThingyId((byte) 1);  // TODO Add ThingyID when Thingy is added to SoundFragment
+            advData.setHopCount((byte) 0);  // The data is processed in the first ClusterHead, so the HopCount is still 0
+
+            advData.setAmplitude(processedData[1]); // Set the amplitude
+            advData.setDuration(processedData[2]);  // Set the duration of the sound
+
+            addAdvPacketToBuffer(advData, true);    // Advertise the data
+
+            BaseDataPacket temp = mClhAdvDataList.get(mClhAdvDataList.size() - 1);
+            Log.i(LOG_TAG, "add new sound data:" + Arrays.toString(temp.getData()));
+        }
+    }
+
+    /*----------
+ Start advertising "data"
+ @param
+  data[]: data
+  settings[]: advertising mode
+             [0]: ADV_SETTING_BYTE_ENERGY,Energy mode:
+                     LOW_POWER_MODE ADV_SETTING_ENERGY_LOWPOWER (default)
+                     BALANCE_MODE ADV_SETTING_ENERGY_BALANCE
+                     HIGH_LATENCY_MODE ADV_SETTING_ENERGY_LOWLATENCY
+             [1]: ADV_SETTING_BYTE_SENDNAME,send name:
+                 0: ADV_SETTING_SENDNAME_NO
+                 1: ADV_SETTING_SENDNAME_YES (default)
+             [2]: ADV_SETTING_BYTE_SENDTXPOWER,send TxPower
+                 0: ADV_SETTING_SENDTXPOWER_NO (default)
+                 1: ADV_SETTING_SENDTXPOWER_YES
+ --------*/
+
     private int startAdvertiser(byte[] settings, byte[] data) {
         //setting and start advertiser
         //@param: settings: configuration
@@ -272,7 +314,7 @@ public class ClhAdvertise {
         Log.i(LOG_TAG,"Start Start Advertizer func");
 
         AdvertiseSettings.Builder advSettingsBuilder = new AdvertiseSettings.Builder()
-                .setTxPowerLevel(AdvertiseSettings.ADVERTISE_TX_POWER_LOW)
+                .setTxPowerLevel(AdvertiseSettings.ADVERTISE_TX_POWER_HIGH)
                 .setConnectable(false);
         //set operation mode: low energy to latency
         switch (settings[ADV_SETTING_BYTE_MODE]) {

@@ -8,10 +8,10 @@ import java.util.Arrays;
 public class SoundDataPacket extends BaseDataPacket {
     public static final byte PACKET_TYPE = 0;
 
-    private static final int THINGY_ID_POS = 5;
-    private static final int THINGY_DATA_TYPE_POS = 6;
-    private static final int SOUND_POWER_POSH = 7;
-    private static final int SOUND_POWER_POSL = 8;
+    private static final int THINGY_ID_POS = LAST_BASE_PACKET_BYTE_POS + 1;
+    private static final int THINGY_DATA_TYPE_POS = LAST_BASE_PACKET_BYTE_POS + 2;
+    private static final int SOUND_POWER_POSH = LAST_BASE_PACKET_BYTE_POS + 3;
+    private static final int SOUND_POWER_POSL = LAST_BASE_PACKET_BYTE_POS + 4;
 
     public SoundDataPacket() {
         setPacketType(PACKET_TYPE);

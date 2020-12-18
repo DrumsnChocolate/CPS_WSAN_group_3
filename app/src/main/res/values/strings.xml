@@ -471,4 +471,8 @@
         <item quantity="other">%d are disconnected</item>
         <item quantity="many">%d are disconnected</item>
     </plurals>
+    <string name="action_wsan">WSAN control panel</string>
+    <string name="altered_by">Specialised in 2020 by WSAN Group 11 for the module Cyber Physical Systems at the University of Twente</string>
+    <string name="graph">graph</string>
+    <string name="list">list</string>
 </resources>

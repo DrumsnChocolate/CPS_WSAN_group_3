@@ -49,18 +49,6 @@ import android.content.pm.PackageManager;
 import android.content.res.Resources;
 import android.os.Bundle;
 import android.os.Handler;
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
-import com.google.android.material.tabs.TabLayout;
-import androidx.core.app.ActivityCompat;
-import androidx.fragment.app.Fragment;
-import androidx.fragment.app.FragmentManager;
-import androidx.fragment.app.FragmentPagerAdapter;
-import androidx.core.content.ContextCompat;
-import androidx.localbroadcastmanager.content.LocalBroadcastManager;
-import androidx.viewpager.widget.ViewPager;
-import androidx.appcompat.widget.Toolbar;
-
 import android.text.SpannableString;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -70,22 +58,45 @@ import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.appcompat.widget.Toolbar;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
+import androidx.fragment.app.Fragment;
+import androidx.fragment.app.FragmentManager;
+import androidx.fragment.app.FragmentPagerAdapter;
+import androidx.lifecycle.MutableLiveData;
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
+import androidx.viewpager.widget.ViewPager;
+
 import com.getkeepsafe.taptargetview.TapTarget;
 import com.getkeepsafe.taptargetview.TapTargetSequence;
+import com.github.mikephil.charting.charts.BarChart;
+import com.github.mikephil.charting.data.BarData;
+import com.github.mikephil.charting.data.BarDataSet;
+import com.github.mikephil.charting.data.BarEntry;
+import com.google.android.material.tabs.TabLayout;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Observable;
+import java.util.Observer;
 
 import no.nordicsemi.android.nrfthingy.ClusterHead.ClhAdvertise;
-import no.nordicsemi.android.nrfthingy.ClusterHead.packet.BaseDataPacket;
-import no.nordicsemi.android.nrfthingy.ClusterHead.packet.SoundDataPacket;
 import no.nordicsemi.android.nrfthingy.ClusterHead.ClhConst;
 import no.nordicsemi.android.nrfthingy.ClusterHead.ClhProcessData;
 import no.nordicsemi.android.nrfthingy.ClusterHead.ClhScan;
 import no.nordicsemi.android.nrfthingy.ClusterHead.ClusterHead;
+import no.nordicsemi.android.nrfthingy.ClusterHead.packet.ActuateThingyPacket;
+import no.nordicsemi.android.nrfthingy.ClusterHead.packet.BaseDataPacket;
+import no.nordicsemi.android.nrfthingy.ClusterHead.packet.SoundEventDataPacket;
 import no.nordicsemi.android.nrfthingy.common.MessageDialogFragment;
 import no.nordicsemi.android.nrfthingy.common.PermissionRationaleDialogFragment;
 import no.nordicsemi.android.nrfthingy.common.Utils;
@@ -93,13 +104,16 @@ import no.nordicsemi.android.nrfthingy.sound.FrequencyModeFragment;
 import no.nordicsemi.android.nrfthingy.sound.PcmModeFragment;
 import no.nordicsemi.android.nrfthingy.sound.SampleModeFragment;
 import no.nordicsemi.android.nrfthingy.sound.ThingyMicrophoneService;
+import no.nordicsemi.android.nrfthingy.thingy.Thingy;
+import no.nordicsemi.android.nrfthingy.thingy.ThingyService;
 import no.nordicsemi.android.nrfthingy.widgets.VoiceVisualizer;
+import no.nordicsemi.android.support.v18.scanner.ScanResult;
 import no.nordicsemi.android.thingylib.ThingyListener;
 import no.nordicsemi.android.thingylib.ThingyListenerHelper;
 import no.nordicsemi.android.thingylib.ThingySdkManager;
 import no.nordicsemi.android.thingylib.utils.ThingyUtils;
 
-public class SoundFragment extends Fragment implements PermissionRationaleDialogFragment.PermissionDialogListener {
+public class SoundFragment extends Fragment implements PermissionRationaleDialogFragment.PermissionDialogListener, Observer {
 
 
     private static final String AUDIO_PLAYING_STATE = "AUDIO_PLAYING_STATE";
@@ -107,6 +121,8 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
     private static final float ALPHA_MAX = 0.60f;
     private static final float ALPHA_MIN = 0.0f;
     private static final int DURATION = 800;
+    private static final int SINK_PROCESS_INTERVAL = ClhConst.SINK_PROCESS_INTERVAL;
+    public static final int MICROPHONE_BUFFER_PROCESS_INTERVAL = ClhConst.MICROPHONE_BUFFER_PROCESS_INTERVAL;
 
     private ImageView mMicrophone;
     private ImageView mMicrophoneOverlay;
@@ -120,25 +136,41 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
     private boolean mStartRecordingAudio = false;
     private boolean mStartPlayingAudio = false;
 
+    private View mRootView;
+
+    MutableLiveData<SoundEventDataPacket> liveSoundEventPacket;
+
     private ThingyListener mThingyListener = new ThingyListener() {
         private Handler mHandler = new Handler();
 
         @Override
         public void onDeviceConnected(BluetoothDevice device, int connectionState) {
+            mClh.addConnectedDevice(device);
+            mClh.removeConnectingDevice(device);
+            Log.i(LOG_TAG, "Connected to device " + device.getAddress());
         }
 
         @Override
         public void onDeviceDisconnected(BluetoothDevice device, int connectionState) {
+            Log.i(LOG_TAG, "Couldn't connect to device " + device.getAddress());
             if (device.equals(mDevice)) {
                 stopRecording();
                 stopMicrophoneOverlayAnimation();
                 stopThingyOverlayAnimation();
                 mStartPlayingAudio = false;
             }
+            mClh.removeConnectedDevice(device);
+            mClh.removeConnectingDevice(device);
+            mClh.removeFromVisible(device);
+            if (!mClh.clusterIsFull()) {
+                connectNextBest();
+            }
         }
 
         @Override
-        public void onServiceDiscoveryCompleted(BluetoothDevice device) {
+        public void onServiceDiscoveryCompleted(final BluetoothDevice device) {
+
+
         }
 
         @Override
@@ -232,24 +264,35 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
         }
 
         @Override
-        public void onMicrophoneValueChangedEvent(BluetoothDevice bluetoothDevice, final byte[] data) {
-            if (data != null) {
-                if (data.length != 0) {
+        public void onMicrophoneValueChangedEvent(BluetoothDevice bluetoothDevice, final byte[] dataBytes) {
+            if (dataBytes != null) {
+                if (dataBytes.length != 0) {
 
+                    // Transform byte data into int data
+                    int[] data = new int[dataBytes.length / 2];
+                    for (int i = 0; i < data.length; i++) {
+                        // The shift by 32768 is added so we don't have to work with signed ints
+                        // Be aware that the order in which each duo of bytes is stored is the reverse of an actual int.
+                        //  e.g. the second byte stores the higher part, and the first byte the lower part
+                        data[i] = ((dataBytes[2*i+1] << 8) + ((dataBytes[2*i]) & 0x00FF) + 32768);
+                    }
 
                     mHandler.post(new Runnable() {
                         @Override
                         public void run() {
-                            mVoiceVisualizer.draw(data);
+                            mVoiceVisualizer.draw(dataBytes);
 
                         }
                     });
 
                     //PSG edit No.1
                     //audio receive event
-                    if( mStartPlayingAudio = true)
-                         mClhAdvertiser.addAdvSoundData(data);
+                    if( mStartPlayingAudio = true) {
+                        // Add data to buffer, so it may be processed later
+                        mClhProcessor.addMicrophoneDataToBuffer(data);
+                    }
                     //End PSG edit No.1
+                    Log.i(LOG_TAG, "Microphone event received!");
 
                 }
             }
@@ -297,18 +340,20 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
     //var declare and init
 
     private Button mAdvertiseButton;
+    private TextView mFoundRouteTextView;
     private EditText mClhIDInput;
     private TextView mClhLog;
-    private final String LOG_TAG="CLH Sound";
+    private final String LOG_TAG="CLH Sound fragment: ";
+    private boolean startButtonState = false;
 
-    private SoundDataPacket mClhData=new SoundDataPacket();
+    private SoundEventDataPacket mClhData = new SoundEventDataPacket();
     private boolean mIsSink=false;
     private byte mClhID=2;
     private byte mClhDestID=0;
     private byte mClhHops=0;
     private byte mClhThingyID=1;
     private byte mClhThingyType=1;
-    private int mClhThingySoundPower=100;
+    private int mClhThingyAmplitude =100;
     ClusterHead mClh;
     ClhAdvertise mClhAdvertiser;
     ClhScan mClhScanner;
@@ -323,6 +368,7 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
                              @Nullable final ViewGroup container,
                              @Nullable final Bundle savedInstanceState) {
         final View rootView = inflater.inflate(R.layout.fragment_sound, container, false);
+        mRootView = rootView;
 
         final Toolbar speakerToolbar = rootView.findViewById(R.id.speaker_toolbar);
         speakerToolbar.inflateMenu(R.menu.audio_warning);
@@ -405,6 +451,7 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
         });
 
 
+
          mThingy.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -434,7 +481,7 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
             if (mStartRecordingAudio) {
                 if (mThingySdkManager.isConnected(mDevice)) {
                     startMicrophoneOverlayAnimation();
-                    sendAudiRecordingBroadcast();
+                    sendAudioRecordingBroadcast();
                 }
             }
         }
@@ -444,38 +491,27 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
 
         //PSG edit No.3----------------------------
         mAdvertiseButton = rootView.findViewById(R.id.startClh_btn);
+        mFoundRouteTextView = rootView.findViewById(R.id.foundRouteTextView);
         mClhIDInput= rootView.findViewById(R.id.clhIDInput_text);
         mClhLog= rootView.findViewById(R.id.logClh_text);
 
         //initial Clusterhead: advertiser, scanner, processor
-        mClh=new ClusterHead(mClhID);
+        mClh=new ClusterHead(mClhID, this);
+        mClh.addObserver(this);
         mClh.initClhBLE(ClhConst.ADVERTISING_INTERVAL);
         mClhAdvertiser=mClh.getClhAdvertiser();
         mClhScanner=mClh.getClhScanner();
+        mClhScanner.setOnRouteFoundListener(new ClhScan.OnRouteFoundListener() {
+            @Override
+            public void onRouteToSinkFound(byte[] route) {
+                mFoundRouteTextView.setText(Arrays.toString(route));
+            }
+        });
         mClhProcessor=mClh.getClhProcessor();
 
-        //timer 1000 ms for SINK to process receive data(display data to text box)
-        final Handler handler=new Handler();
-        handler. postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                handler.postDelayed(this, 1000); //loop every cycle
-                if(mIsSink)
-                {
-                    ArrayList<BaseDataPacket> procList=mClhProcessor.getProcessDataList();
-                    for(int i=0; i<procList.size();i++)
-                    {
-                        if(i==10) break; //just display 10 line in one cycle
-                        byte[] data=procList.get(0).getData();
-                        mClhLog.append(Arrays.toString(data));
-                        mClhLog.append("\r\n");
-                        procList.remove(0);
-                    }
-                }
-            }
-        }, 1000); //the time you want to delay in milliseconds
+        setupVisualization();
 
-        //"Start" button Click Hander
+        //"Start" button Click Handler
         // get Cluster Head ID (0-127) in text box to initialize advertiser
         //Then Start advertising
         //ID=0: Sink
@@ -490,6 +526,7 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
                 if (mAdvertiseButton.getText().toString().equals("Start")) {
                     mAdvertiseButton.setText("Stop");
                     mClhIDInput.setEnabled(false);
+                    startButtonState = true;
 
                     mClh.clearClhAdvList(); //empty list before starting
 
@@ -504,28 +541,53 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
                         int num = Integer.valueOf(strEnteredVal);
                         if (num>127) num=mClhID;
                         mClhID = (byte) num;
-                        mIsSink = mClh.setClhID(mClhID);
+                        mIsSink = mClh.setClhID(mClhID, true);
                         Log.i(LOG_TAG, "set ClhID:"+mClhID);
                     }
+
+                    // Start a new repeating thread for data processing, both for clusterhead and sink
+                    new Thread(new Runnable() {
+                        @Override
+                        public void run() {
+                            // First check if we're actually active
+                            while (getStartButtonState()) {
+                                try {
+                                    if (mIsSink) {
+                                        // The sink must process packet buffer
+                                        processSinkBuffer();
+                                        Thread.sleep(SINK_PROCESS_INTERVAL);
+                                    } else {
+                                        // Clusterheads must process microphone buffer
+                                        processMicrophoneBuffer();
+                                        Thread.sleep(MICROPHONE_BUFFER_PROCESS_INTERVAL);
+                                    }
+
+                                } catch (InterruptedException e) {
+                                    e.printStackTrace();
+                                }
+                            }
+                        }
+                    }). start();
 
                     //ID=127, set dummy data include 100 elements for testing purpose
                     if(mClhID==127) {
                         //mClhID = 1;
                         byte clhPacketID=1;
-                        mClhThingySoundPower = 100;
+                        mClhThingyAmplitude = 100;
                         mClhData.setSourceID(mClhID);
                         mClhData.setPacketID(clhPacketID);
                         mClhData.setDestId(mClhDestID);
                         mClhData.setHopCount(mClhHops);
                         mClhData.setThingyId(mClhThingyID);
                         mClhData.setThingyDataType(mClhThingyType);
-                        mClhData.setSoundPower(mClhThingySoundPower);
+                        mClhData.setAmplitude(mClhThingyAmplitude);
+                        mClhData.setDuration(750);
                         mClhAdvertiser.addAdvPacketToBuffer(mClhData,true);
                         for (int i = 0; i < 100; i++) {
-                            SoundDataPacket clh = (SoundDataPacket) mClhData.clone();
+                            SoundEventDataPacket clh = mClhData.clone();
                             //Log.i(LOG_TAG, "Array old:" + Arrays.toString(clh.getParcelClhData()));
-                            mClhThingySoundPower += 10;
-                            clh.setSoundPower(mClhThingySoundPower);
+                            mClhThingyAmplitude += 10;
+                            clh.setAmplitude(mClhThingyAmplitude);
                             mClhAdvertiser.addAdvPacketToBuffer(clh,true);
 
                             Log.i(LOG_TAG, "Add array:" + Arrays.toString(clh.getData()));
@@ -540,6 +602,7 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
                     mAdvertiseButton.setText("Start");
                     mClhIDInput.setEnabled(true);
                     mClhAdvertiser.stopAdvertiseClhData();
+                    startButtonState = false;
                 }
             }
         });
@@ -551,7 +614,7 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
         return rootView;
     }
 
-    private void sendAudiRecordingBroadcast() {
+    private void sendAudioRecordingBroadcast() {
         Intent startAudioRecording = new Intent(getActivity(), ThingyMicrophoneService.class);
         startAudioRecording.setAction(Utils.START_RECORDING);
         startAudioRecording.putExtra(Utils.EXTRA_DEVICE, mDevice);
@@ -632,7 +695,7 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
 
     private void startRecording() {
         startMicrophoneOverlayAnimation();
-        sendAudiRecordingBroadcast();
+        sendAudioRecordingBroadcast();
         mStartRecordingAudio = true;
     }
 
@@ -786,5 +849,124 @@ public class SoundFragment extends Fragment implements PermissionRationaleDialog
                 }
             }).start();
         }
+    }
+
+    private void processSinkBuffer() {
+        ActuateThingyPacket thingyPacket = mClhProcessor.getLoudestThingy();
+            // update data to write in the graph
+
+        liveSoundEventPacket.postValue(mClhProcessor.getGreatestAmplitudePacket());
+        if (thingyPacket != null) {
+            Log.i(LOG_TAG, "                                    Sending an actuation packet to clusterhead "+ thingyPacket.getDestinationID());
+            // Send packet if it exists
+            mClhAdvertiser.addAdvPacketToBuffer(thingyPacket, true);
+        }
+    }
+
+    private void processMicrophoneBuffer() {
+        SoundEventDataPacket soundPacket = mClhProcessor.findSoundEventsInMicrophoneBuffer();
+
+        if (soundPacket != null) {
+            // Populate package further
+            soundPacket.setThingyId((byte) 1); //TODO Retrieve actual thingy ID
+            soundPacket.setSourceID(mClhID);
+            soundPacket.setDestId(BaseDataPacket.SINK_ID);
+            Log.i(LOG_TAG, "                                        Amplitude: "+ soundPacket.getAmplitude() +", Duration: "+ soundPacket.getDuration());
+            // Send packet
+            mClhAdvertiser.addAdvPacketToBuffer(soundPacket, true);
+
+
+            //TODO Test code to see if we can get the Thingy to turn on
+            //==================
+//            turnOnLED();
+            // End test code
+            //==================
+        }
+    }
+
+    public void turnOnLED() {
+        if (mDevice != null) {
+            final BluetoothDevice device = mDevice;
+            if (mThingySdkManager.isConnected(device)) {
+                int ledIntensity = 50; // Percent, bright enough for blue LED
+                int ledColor = ThingyUtils.LED_GREEN; // Because it's pretty
+                mThingySdkManager.setOneShotLedMode(device, ledColor, ledIntensity);
+            }
+            Log.i(LOG_TAG, "Tried to turn on Thingy LED");
+        }
+    }
+
+    public boolean getStartButtonState() {
+        return startButtonState;
+    }
+
+    BarChart barChart1;
+    BarChart barChart2;
+    private void setupVisualization() {
+        final ArrayList<BarEntry> barEntries2 = new ArrayList<>();
+        final ArrayList<String> thingyId= new ArrayList<>();
+        barChart1 = mRootView.findViewById(R.id.bargraph1);
+        barChart2 = mRootView.findViewById(R.id.bargraph2);
+        
+        // live data setup
+        liveSoundEventPacket = new MutableLiveData<>();
+        liveSoundEventPacket.observeForever(new androidx.lifecycle.Observer<SoundEventDataPacket>() {
+            @Override
+            public void onChanged(SoundEventDataPacket soundPacket) {
+                // Graphs
+                barEntries2.add(new BarEntry(soundPacket.getAmplitude(), soundPacket.getThingyId()));
+                thingyId.add("ID: " + soundPacket.getThingyId());
+                BarDataSet barDataSet2 = new BarDataSet(barEntries2,"thingies");
+                BarData theData1 = new BarData(thingyId, barDataSet2);
+                barChart1.setData(theData1);
+            }
+        });
+        ArrayList<BarEntry>barEntries1 =new ArrayList<>();
+
+        // List
+        LinearLayout eventsList = mRootView.findViewById(R.id.eventsList);
+
+        ArrayList<String> list = new ArrayList<>();
+        list.add("scream");//addhere reference to event
+        list.add("scream");
+        list.add("not a scream");
+        list.add("scream");
+
+//        eventsList.removeAllViews();
+//        for (String item : list) {
+//            TextView listItem = new TextView(this.getContext());
+//            listItem.setText(item);
+//            listItem.setPadding(0, 15, 0, 15);
+//            eventsList.addView(listItem);
+//        }
+    }
+
+    @Override
+    public void update(Observable o, Object arg) {
+        if (o instanceof ClusterHead) {
+            if (o == mClh) {
+                connectCluster();
+//                Log.i(LOG_TAG, "Number of thingies found: " + mClh.getClosestThingies().size());
+                Log.i(LOG_TAG, "connecting to cluster!");
+            }
+        }
+    }
+
+    private void connectCluster() {
+        List<BluetoothDevice> closest = mClh.getClosestUnconnectedThingies();
+        for (int i = 0; i < closest.size(); i++) {
+            connect(closest.get(i));
+        }
+    }
+
+    private void connect(final BluetoothDevice device) {
+        mThingySdkManager.connectToThingy(getContext(), device, ThingyService.class);
+        mClh.addConnectingDevice(device);
+        mClh.removeResult(device);
+    }
+
+    private void connectNextBest() {
+        BluetoothDevice device = mClh.getClosestUnconnectedThingies().get(0);
+        connect(device);
     }
 }

@@ -106,6 +106,13 @@
 
         <activity android:name=".common.AboutActivity" />
 
+        <activity android:name=".visualisationpic"
+            android:launchMode="singleTask">
+        </activity>
+        <activity android:name=".visualisationlist"
+            android:launchMode="singleTask">
+        </activity>
+
     </application>
 
 </manifest>

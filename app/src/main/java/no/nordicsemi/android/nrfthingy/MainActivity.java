@@ -133,10 +133,13 @@ import static no.nordicsemi.android.nrfthingy.common.Utils.GROUP_ID_ABOUT;
 import static no.nordicsemi.android.nrfthingy.common.Utils.GROUP_ID_ADD_THINGY;
 import static no.nordicsemi.android.nrfthingy.common.Utils.GROUP_ID_DFU;
 import static no.nordicsemi.android.nrfthingy.common.Utils.GROUP_ID_SAVED_THINGIES;
+import static no.nordicsemi.android.nrfthingy.common.Utils.GROUP_ID_VISUALISATION;
 import static no.nordicsemi.android.nrfthingy.common.Utils.INITIAL_CONFIG_FROM_ACTIVITY;
 import static no.nordicsemi.android.nrfthingy.common.Utils.ITEM_ID_ADD_THINGY;
 import static no.nordicsemi.android.nrfthingy.common.Utils.ITEM_ID_DFU;
 import static no.nordicsemi.android.nrfthingy.common.Utils.ITEM_ID_SETTINGS;
+import static no.nordicsemi.android.nrfthingy.common.Utils.ITEM_ID_LIST;
+import static no.nordicsemi.android.nrfthingy.common.Utils.ITEM_ID_GRAPH;
 import static no.nordicsemi.android.nrfthingy.common.Utils.MOTION_FRAGMENT;
 import static no.nordicsemi.android.nrfthingy.common.Utils.NFC_DIALOG_TAG;
 import static no.nordicsemi.android.nrfthingy.common.Utils.NOTIFICATION_ID;
@@ -231,10 +234,18 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         }
 
         @Override
-        public void onServiceDiscoveryCompleted(BluetoothDevice device) {
+        public void onServiceDiscoveryCompleted(final BluetoothDevice device) {
             updateBatteryLevelVisibility(View.VISIBLE);
             onServiceDiscoveryCompletion(device);
-            checkForFwUpdates();
+            Handler handler = new Handler();
+            handler.postDelayed(new Runnable() {
+
+                @Override
+                public void run() {
+                    mThingySdkManager.enableThingyMicrophone(device,true);
+                    Log.i(TAG, "Enabled mic on thingy");
+                }
+            }, 2000);
         }
 
         @Override
@@ -701,9 +712,16 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                 Intent aboutActivity = new Intent(MainActivity.this, AboutActivity.class);
                 startActivity(aboutActivity);
                 break;
+            case GROUP_ID_VISUALISATION:
+                if (item.getItemId() == ITEM_ID_LIST) {
+                    Intent wsanControlPanel1 = new Intent(MainActivity.this, visualisationlist.class);
+                    startActivity(wsanControlPanel1);}
+                if (item.getItemId() == ITEM_ID_GRAPH) {
+                    Intent wsanControlPanel2 = new Intent(MainActivity.this, visualisationpic.class);
+                    startActivity(wsanControlPanel2);}
+                break;
             default:
 
-                break;
         }
 
         new Handler().postDelayed(new Runnable() {
@@ -1073,6 +1091,12 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         mNavigationView.getMenu().add(GROUP_ID_DFU, ITEM_ID_DFU, total, getString(R.string.settings_dfu)).setIcon(R.drawable.ic_dfu_gray);
         total += total;
         mNavigationView.getMenu().add(GROUP_ID_ABOUT, ITEM_ID_SETTINGS, total, getString(R.string.action_about)).setIcon(R.drawable.ic_info_grey);
+
+        // Add a button to go to the control page for WSAN
+        total += total;
+        mNavigationView.getMenu().add(GROUP_ID_VISUALISATION, ITEM_ID_LIST, total, getString(R.string.list)).setIcon(R.drawable.ic_mic_grey);
+        total += total;
+        mNavigationView.getMenu().add(GROUP_ID_VISUALISATION, ITEM_ID_GRAPH, total, getString(R.string.graph)).setIcon(R.drawable.ic_mic_grey);
     }
 
     private void checkFragmentDrawerItem() {
@@ -1896,6 +1920,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                 break;
             case SOUND_FRAGMENT:
                 enableSoundNotifications(device, true);
+                enableUiNotifications();
                 break;
             case CLOUD_FRAGMENT:
                 enableNotificationsForCloudUpload();
